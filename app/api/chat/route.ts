@@ -4,17 +4,15 @@ import { rateLimiter, getRateLimitResponse } from "@/lib/rate-limiter"
 import { addMessageToConversation, getConversation } from "@/lib/conversation-service"
 import type { Message } from "@/types/chat"
 
-const SCIENTIFIC_SYSTEM_PROMPT = `
-You are Synaptiq, a professional scientific AI assistant specializing in physics, quantum mechanics, and mathematics.
+const SYSTEM_PROMPT = `
+You are Synaptiq, an advanced AI assistant specialized in scientific reasoning but capable of engaging in natural, intelligent conversations across any topic.
 
 Behavior Instructions:
-- Respond naturally and conversationally like a real physicist.
-- When the user requests a derivation, formula, or proof:
-  - You MUST provide the full step-by-step derivation.
-  - Use LaTeX formatting inside \\[ ... \\] for equations.
-  - Do not skip actual math content.
-- Keep tone professional, intelligent, like a research assistant.
-- Reference previous parts of the conversation when relevant.
+- If the user asks a casual, general, or friendly question (e.g., "hi", "how are you", "what's up"), respond naturally, warmly, and conversationally.
+- If the user asks a scientific question (physics, math, quantum mechanics, research topics), switch to a detailed, professional, research-grade explanation.
+- Provide full step-by-step derivations, proofs, or technical explanations when requested, using \\[ ... \\] LaTeX formatting for equations.
+- Always maintain a helpful, intelligent, and supportive tone.
+- Adapt your depth and formality based on the user's tone and question type.
 `.trim()
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -22,17 +20,13 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY
 
 export async function POST(req: NextRequest) {
   try {
-    // Apply rate limiting
+    // Rate limit protection
     const userType = req.headers.get("x-user-type") || "anonymous"
     const userId = req.headers.get("x-user-id") || "anonymous"
 
     const rateLimit = await rateLimiter(req, userType as "anonymous" | "free" | "premium", userId)
-
-    // Check if rate limit is exceeded
     const rateLimitResponse = getRateLimitResponse(rateLimit)
-    if (rateLimitResponse) {
-      return rateLimitResponse
-    }
+    if (rateLimitResponse) return rateLimitResponse
 
     // Parse request body
     const { messages, mode, conversationId } = await req.json()
@@ -41,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Messages must be an array." }, { status: 400 })
     }
 
-    // Get conversation from database if conversationId is provided
+    // Get existing conversation if available
     let conversation = null
     if (conversationId) {
       conversation = await getConversation(conversationId)
@@ -56,23 +50,23 @@ export async function POST(req: NextRequest) {
       content,
     }))
 
-    // Add system message with context about previous messages if we have a conversation
+    // System message with interaction context
     const systemMessage = {
       role: "system",
-      content: `${SCIENTIFIC_SYSTEM_PROMPT}
-Interaction mode: ${mode || "exploratory"}`,
+      content: `${SYSTEM_PROMPT}\nInteraction mode: ${mode || "exploratory"}`,
     }
 
-    // If we have a conversation with more than 10 messages, add a summary of earlier messages
+    // Add earlier conversation summary if applicable
     if (conversation && conversation.messages.length > 10) {
       const earlierMessages = conversation.messages.slice(0, -10)
       const earlierMessagesContent = earlierMessages
         .map((m) => `${m.role === "user" ? "User" : "You"}: ${m.content}`)
         .join("\n\n")
 
-      systemMessage.content += `\n\nEarlier in this conversation (for your reference):\n${earlierMessagesContent}`
+      systemMessage.content += `\n\nEarlier conversation history (for reference):\n${earlierMessagesContent}`
     }
 
+    // Prepare Groq API payload
     const payload = {
       model: "llama3-70b-8192",
       messages: [systemMessage, ...conversationHistory],
@@ -80,7 +74,7 @@ Interaction mode: ${mode || "exploratory"}`,
       max_tokens: 4096,
     }
 
-    // Call the Groq API
+    // Call Groq API
     const response = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
@@ -94,7 +88,7 @@ Interaction mode: ${mode || "exploratory"}`,
       const errorBody = await response.text()
       console.error(`❌ Groq API Error (${response.status}):`, errorBody)
       return NextResponse.json(
-        { text: `Synaptiq encountered an error (${response.status}).` },
+        { text: `Synaptiq encountered an API error (${response.status}).` },
         { status: response.status },
       )
     }
@@ -102,12 +96,11 @@ Interaction mode: ${mode || "exploratory"}`,
     const data = await response.json()
     const content = data.choices?.[0]?.message?.content ?? ""
 
-    // Create response object
+    // Prepare response data
     const responseData = { text: content }
 
-    // If we have a conversation, add the new messages to it
+    // Save conversation if applicable
     if (conversationId && conversation) {
-      // Add user message
       const userMessage: Message = {
         id: nanoid(),
         role: "user",
@@ -115,9 +108,6 @@ Interaction mode: ${mode || "exploratory"}`,
         timestamp: new Date(),
       }
 
-      await addMessageToConversation(conversationId, userMessage)
-
-      // Add assistant message
       const assistantMessage: Message = {
         id: nanoid(),
         role: "assistant",
@@ -125,10 +115,11 @@ Interaction mode: ${mode || "exploratory"}`,
         timestamp: new Date(),
       }
 
+      await addMessageToConversation(conversationId, userMessage)
       await addMessageToConversation(conversationId, assistantMessage)
     }
 
-    // Add rate limit headers to response
+    // Add rate limit headers
     const headers = new Headers()
     headers.set("X-RateLimit-Limit", rateLimit.limit.toString())
     headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString())
@@ -136,7 +127,7 @@ Interaction mode: ${mode || "exploratory"}`,
 
     return NextResponse.json(responseData, { headers })
   } catch (error) {
-    console.error("❌ Internal server error in Synaptiq chat API:", error)
+    console.error("❌ Internal Server Error:", error)
     return NextResponse.json(
       { text: "Synaptiq encountered an internal error. Please try again later." },
       { status: 500 },
