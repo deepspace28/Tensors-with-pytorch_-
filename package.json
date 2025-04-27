@@ -67,7 +67,6 @@
     "mongodb-client-encryption": "latest",
     "@aws-sdk/credential-providers": "latest",
     "framer-motion": "latest",
-    "@groq-cloud/client": "latest",
     "react-markdown": "latest",
     "remark-math": "latest",
     "rehype-katex": "latest",

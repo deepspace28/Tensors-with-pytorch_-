@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
     // Add system message with context about previous messages if we have a conversation
     const systemMessage = {
       role: "system",
-      content: `${SCIENTIFIC_SYSTEM_PROMPT}\nInteraction mode: ${mode || "exploratory"}`,
+      content: `${SCIENTIFIC_SYSTEM_PROMPT}
+Interaction mode: ${mode || "exploratory"}`,
     }
 
     // If we have a conversation with more than 10 messages, add a summary of earlier messages
