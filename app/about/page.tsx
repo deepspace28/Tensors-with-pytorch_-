@@ -1,193 +1,279 @@
-import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, Award, BookOpen, BrainCircuit, GraduationCap, Microscope, Users } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Atom, Award, BookOpen, BrainCircuit, FlaskRoundIcon as Flask, Microscope, Users } from "lucide-react"
 
 export const metadata = {
-  title: "About Us",
-  description: "Learn about the Synaptiq team and our mission to advance scientific research through AI.",
+  title: "About Synaptiq | Advanced Scientific AI",
+  description: "Learn about Synaptiq's mission to accelerate scientific discovery through advanced AI models.",
 }
 
 export default function AboutPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-black">
       <SiteHeader />
       <main className="flex-1">
-        <section className="container py-12 md:py-24 lg:py-32">
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:grid-cols-2">
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">Our Mission</h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Synaptiq is dedicated to accelerating scientific discovery through advanced AI models specifically
-                  designed for researchers, physicists, mathematicians, and scientific institutions.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Button asChild>
-                  <Link href="/contact">
-                    Contact Us <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link href="/docs">Read Documentation</Link>
-                </Button>
-              </div>
+        {/* Hero Section */}
+        <section className="w-full py-12 md:py-24 lg:py-32 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('/Quantum Neural Web.png')] bg-cover bg-center opacity-5"></div>
+          <div className="container px-4 md:px-6 relative z-10">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <Badge className="px-4 py-1 text-sm bg-white text-black" variant="outline">
+                Our Mission
+              </Badge>
+              <h1 className="text-3xl font-bold tracking-tighter text-white sm:text-5xl md:text-6xl">
+                Accelerating Scientific Discovery
+              </h1>
+              <p className="max-w-[700px] text-lg text-gray-400 md:text-xl">
+                Synaptiq is dedicated to empowering researchers with advanced AI tools that push the boundaries of
+                scientific knowledge.
+              </p>
             </div>
-            <Image
-              src="/cosmic-flow.png"
-              width={550}
-              height={550}
-              alt="Abstract scientific visualization"
-              className="mx-auto aspect-square overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
-            />
           </div>
         </section>
-        <section className="container py-12 md:py-24 lg:py-32 bg-muted/50">
-          <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
-            <h2 className="text-3xl font-bold leading-[1.1] sm:text-4xl md:text-5xl">Our Values</h2>
-            <p className="max-w-[85%] leading-normal text-muted-foreground sm:text-lg sm:leading-7">
-              The principles that guide our work and innovation.
-            </p>
-          </div>
-          <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3 lg:gap-8 mt-12">
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2">
-                <Microscope className="h-5 w-5 text-primary" />
-                <CardTitle>Scientific Rigor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  We uphold the highest standards of scientific accuracy and validation in all our models and tools.
+
+        {/* Our Story */}
+        <section className="w-full py-12 md:py-24 bg-gray-900">
+          <div className="container px-4 md:px-6">
+            <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 items-center">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tighter text-white mb-4">Our Story</h2>
+                <p className="text-gray-300 mb-4">
+                  Synaptiq was founded in 2021 by a team of physicists, mathematicians, and AI researchers with a shared
+                  vision: to create AI systems that truly understand the language of science.
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2">
-                <BrainCircuit className="h-5 w-5 text-primary" />
-                <CardTitle>Innovation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  We continuously push the boundaries of what's possible in scientific AI and quantum simulations.
+                <p className="text-gray-300 mb-4">
+                  We recognized that while general-purpose AI models were advancing rapidly, they often struggled with
+                  the nuanced reasoning and specialized knowledge required for scientific research.
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <CardTitle>Open Science</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  We believe in transparency and collaboration to advance scientific knowledge collectively.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-        <section className="container py-12 md:py-24 lg:py-32">
-          <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
-            <h2 className="text-3xl font-bold leading-[1.1] sm:text-4xl md:text-5xl">Our Team</h2>
-            <p className="max-w-[85%] leading-normal text-muted-foreground sm:text-lg sm:leading-7">
-              Meet the experts behind Synaptiq's groundbreaking technology.
-            </p>
-          </div>
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12">
-            <div className="flex flex-col items-center space-y-4">
-              <Image
-                src="/huberman-avatar.png"
-                width={200}
-                height={200}
-                alt="Dr. Michael Chen"
-                className="rounded-full object-cover"
-              />
-              <div className="space-y-2 text-center">
-                <h3 className="text-xl font-bold">Dr. Michael Chen</h3>
-                <p className="text-sm text-muted-foreground">Chief Scientific Officer</p>
-                <p className="text-sm">
-                  Former quantum physicist at CERN with over 15 years of experience in quantum computing and AI.
+                <p className="text-gray-300">
+                  After three years of intensive research and development, we launched Synaptiq—an AI platform
+                  specifically designed to understand, reason about, and contribute to scientific knowledge across
+                  physics, mathematics, chemistry, and beyond.
                 </p>
               </div>
-            </div>
-            <div className="flex flex-col items-center space-y-4">
-              <Image
-                src="/focused-female-scientist.png"
-                width={200}
-                height={200}
-                alt="Dr. Sarah Johnson"
-                className="rounded-full object-cover"
-              />
-              <div className="space-y-2 text-center">
-                <h3 className="text-xl font-bold">Dr. Sarah Johnson</h3>
-                <p className="text-sm text-muted-foreground">Lead AI Researcher</p>
-                <p className="text-sm">
-                  Specialist in mathematical modeling and neural networks with publications in Nature and Science.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-center space-y-4">
-              <Image
-                src="/confident-tech-leader.png"
-                width={200}
-                height={200}
-                alt="David Rodriguez"
-                className="rounded-full object-cover"
-              />
-              <div className="space-y-2 text-center">
-                <h3 className="text-xl font-bold">David Rodriguez</h3>
-                <p className="text-sm text-muted-foreground">Chief Technology Officer</p>
-                <p className="text-sm">
-                  Former engineering leader at Google AI with expertise in scalable AI systems and infrastructure.
-                </p>
+              <div className="relative h-[400px] rounded-lg overflow-hidden">
+                <Image src="/thoughtful-scientist.png" alt="Synaptiq founding team" fill className="object-cover" />
               </div>
             </div>
           </div>
         </section>
-        <section className="container py-12 md:py-24 lg:py-32 bg-muted/50">
-          <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
-            <h2 className="text-3xl font-bold leading-[1.1] sm:text-4xl md:text-5xl">Our Achievements</h2>
-            <p className="max-w-[85%] leading-normal text-muted-foreground sm:text-lg sm:leading-7">
-              Milestones that mark our journey in advancing scientific AI.
-            </p>
+
+        {/* Our Values */}
+        <section className="w-full py-12 md:py-24">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tighter text-white">Our Core Values</h2>
+              <p className="max-w-[700px] text-gray-400">
+                The principles that guide our work and shape our approach to scientific AI.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="rounded-full bg-white/10 p-3">
+                      <Microscope className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold">Scientific Rigor</h3>
+                    <p className="text-gray-300">
+                      We hold our AI to the same standards as peer-reviewed research, ensuring accuracy and reliability
+                      in all outputs.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="rounded-full bg-white/10 p-3">
+                      <BookOpen className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold">Open Knowledge</h3>
+                    <p className="text-gray-300">
+                      We believe in democratizing access to scientific knowledge and tools, making them available to
+                      researchers worldwide.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="rounded-full bg-white/10 p-3">
+                      <BrainCircuit className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold">Continuous Learning</h3>
+                    <p className="text-gray-300">
+                      Our models are constantly evolving, incorporating the latest scientific research and
+                      methodologies.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-          <div className="mx-auto max-w-3xl mt-12">
-            <div className="space-y-8">
-              <div className="flex gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Award className="h-5 w-5 text-primary" />
+        </section>
+
+        {/* Our Team */}
+        <section className="w-full py-12 md:py-24 bg-gray-900">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tighter text-white">Our Team</h2>
+              <p className="max-w-[700px] text-gray-400">
+                A diverse group of scientists, engineers, and AI researchers united by a passion for scientific
+                discovery.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                  <Image src="/confident-scientist.png" alt="Dr. Elena Patel" fill className="object-cover" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold">Best Scientific AI Platform</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Awarded by the International Association for AI in Science, 2023
+                <div>
+                  <h3 className="text-xl font-bold text-white">Dr. Elena Patel</h3>
+                  <p className="text-gray-400">Chief Scientific Officer</p>
+                  <p className="text-gray-300 mt-2">
+                    Quantum physicist with 15+ years of research experience at CERN and MIT.
                   </p>
                 </div>
               </div>
-              <Separator />
-              <div className="flex gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Users className="h-5 w-5 text-primary" />
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                  <Image src="/huberman-avatar.png" alt="Dr. Marcus Chen" fill className="object-cover" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold">10,000+ Researchers</h3>
-                  <p className="text-sm text-muted-foreground">Active users from top research institutions worldwide</p>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Dr. Marcus Chen</h3>
+                  <p className="text-gray-400">Chief Technology Officer</p>
+                  <p className="text-gray-300 mt-2">
+                    AI researcher and former lead at DeepMind's scientific AI division.
+                  </p>
                 </div>
               </div>
-              <Separator />
-              <div className="flex gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <GraduationCap className="h-5 w-5 text-primary" />
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                  <Image src="/focused-female-scientist.png" alt="Dr. Sophia Rodriguez" fill className="object-cover" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold">Research Partnerships</h3>
-                  <p className="text-sm text-muted-foreground">Collaborations with MIT, Stanford, Oxford, and CERN</p>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Dr. Sophia Rodriguez</h3>
+                  <p className="text-gray-400">Head of Research</p>
+                  <p className="text-gray-300 mt-2">
+                    Computational chemist specializing in molecular dynamics and quantum chemistry.
+                  </p>
                 </div>
+              </div>
+            </div>
+            <div className="flex justify-center mt-12">
+              <Button asChild className="bg-white hover:bg-gray-200 text-black">
+                <Link href="/team">
+                  <Users className="mr-2 h-4 w-4" />
+                  Meet the Full Team
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Achievements */}
+        <section className="w-full py-12 md:py-24">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tighter text-white">Our Achievements</h2>
+              <p className="max-w-[700px] text-gray-400">
+                Milestones in our journey to revolutionize scientific research with AI.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="rounded-full bg-white/10 p-3 mt-1">
+                      <Award className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Scientific Accuracy Award</h3>
+                      <p className="text-gray-400 text-sm mb-2">2023 AI Research Summit</p>
+                      <p className="text-gray-300">
+                        Recognized for achieving 99.8% accuracy in mathematical proofs and quantum physics simulations.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="rounded-full bg-white/10 p-3 mt-1">
+                      <Flask className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Research Breakthrough</h3>
+                      <p className="text-gray-400 text-sm mb-2">Published in Nature, 2022</p>
+                      <p className="text-gray-300">
+                        Our quantum simulation algorithm identified a novel approach to quantum error correction, now
+                        implemented in leading quantum computing labs.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="rounded-full bg-white/10 p-3 mt-1">
+                      <Atom className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Quantum Neural Network Patent</h3>
+                      <p className="text-gray-400 text-sm mb-2">2023</p>
+                      <p className="text-gray-300">
+                        Developed and patented a novel architecture for quantum neural networks that achieves
+                        exponential speedup for certain scientific computations.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-900 border-gray-800 text-white">
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="rounded-full bg-white/10 p-3 mt-1">
+                      <Users className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Research Partnerships</h3>
+                      <p className="text-gray-400 text-sm mb-2">Ongoing</p>
+                      <p className="text-gray-300">
+                        Established collaborative research programs with 24+ leading universities and research
+                        institutions worldwide.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="w-full py-12 md:py-24 bg-gray-900">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <h2 className="text-3xl font-bold tracking-tighter text-white">Join Our Scientific Community</h2>
+              <p className="max-w-[700px] text-gray-300">
+                Connect with researchers worldwide and explore the frontiers of scientific discovery with Synaptiq.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <Button asChild className="bg-white hover:bg-gray-200 text-black">
+                  <Link href="/signup">Create an Account</Link>
+                </Button>
+                <Button asChild variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
+                  <Link href="/contact">Contact Us</Link>
+                </Button>
               </div>
             </div>
           </div>

@@ -1,0 +1,57 @@
+/* Formal Math Exposition Styles */
+.formal-math-exposition {
+  font-family: "Times New Roman", Times, serif;
+  line-height: 1.6;
+  color: #f8f8f8;
+  background-color: #121212;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.formal-math-exposition h2,
+.formal-math-exposition h3,
+.formal-math-exposition h4 {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.formal-math-exposition strong {
+  font-weight: 600;
+  color: #f0f0f0;
+}
+
+.formal-math-exposition em {
+  font-style: italic;
+  color: #e0e0e0;
+}
+
+.formal-math-exposition hr {
+  margin: 1.5em 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.formal-math-exposition .katex-display {
+  margin: 1.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.formal-math-exposition ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.formal-math-exposition ol li {
+  margin-bottom: 0.5em;
+}
+
+.formal-math-exposition p {
+  margin-bottom: 1em;
+}
+
+.formal-math-exposition .katex {
+  font-size: 1.1em;
+}

@@ -6,6 +6,7 @@ import { Inter, IBM_Plex_Sans } from "next/font/google"
 import { siteConfig } from "@/config/site"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/contexts/auth-context"
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" })
 const ibmPlexSans = IBM_Plex_Sans({
@@ -82,9 +83,20 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable, ibmPlexSans.variable)}>
+      <head>
+        {/* Add KaTeX CSS directly in the head */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
+          integrity="sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body className={cn("min-h-screen bg-black font-sans antialiased", inter.variable, ibmPlexSans.variable)}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          {children}
+          <AuthProvider>
+            <div className="relative z-10">{children}</div>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

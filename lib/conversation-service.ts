@@ -1,71 +1,93 @@
 import { nanoid } from "nanoid"
-import { getCollection } from "./mongodb"
+import { conversationsCollection, type Conversation } from "./storage"
 import type { Message } from "@/types/chat"
 
-export interface Conversation {
-  _id: string
-  userId: string
-  title: string
-  messages: Message[]
-  createdAt: Date
-  updatedAt: Date
-}
+export type { Conversation } from "./storage"
 
 export async function createConversation(userId: string): Promise<Conversation> {
-  const conversations = await getCollection("conversations")
+  try {
+    const conversation: Conversation = {
+      _id: nanoid(),
+      userId,
+      title: "New Conversation",
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
 
-  const conversation: Conversation = {
-    _id: nanoid(),
-    userId,
-    title: "New Conversation",
-    messages: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    await conversationsCollection.insertOne(conversation)
+    return conversation
+  } catch (error) {
+    console.error("Error creating conversation:", error)
+    // Return a fallback conversation
+    return {
+      _id: nanoid(),
+      userId,
+      title: "New Conversation",
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
   }
-
-  await conversations.insertOne(conversation)
-  return conversation
 }
 
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
-  const conversations = await getCollection("conversations")
-  return conversations.findOne({ _id: conversationId }) as Promise<Conversation | null>
+  try {
+    return await conversationsCollection.findOne({ _id: conversationId })
+  } catch (error) {
+    console.error(`Error getting conversation ${conversationId}:`, error)
+    return null
+  }
 }
 
 export async function getUserConversations(userId: string): Promise<Conversation[]> {
-  const conversations = await getCollection("conversations")
-  return conversations.find({ userId }).sort({ updatedAt: -1 }).toArray() as Promise<Conversation[]>
+  try {
+    return await conversationsCollection.find({ userId }).sort({ updatedAt: -1 }).toArray()
+  } catch (error) {
+    console.error(`Error getting user conversations for ${userId}:`, error)
+    return []
+  }
 }
 
 export async function addMessageToConversation(conversationId: string, message: Message): Promise<Conversation | null> {
-  const conversations = await getCollection("conversations")
+  try {
+    const result = await conversationsCollection.findOneAndUpdate(
+      { _id: conversationId },
+      {
+        $push: { messages: message },
+        $set: { updatedAt: new Date() },
+      },
+      { returnDocument: "after" },
+    )
 
-  const result = await conversations.findOneAndUpdate(
-    { _id: conversationId },
-    {
-      $push: { messages: message },
-      $set: { updatedAt: new Date() },
-    },
-    { returnDocument: "after" },
-  )
-
-  return result as unknown as Conversation | null
+    return result
+  } catch (error) {
+    console.error(`Error adding message to conversation ${conversationId}:`, error)
+    return null
+  }
 }
 
 export async function updateConversationTitle(conversationId: string, title: string): Promise<Conversation | null> {
-  const conversations = await getCollection("conversations")
+  try {
+    const result = await conversationsCollection.findOneAndUpdate(
+      { _id: conversationId },
+      { $set: { title, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    )
 
-  const result = await conversations.findOneAndUpdate(
-    { _id: conversationId },
-    { $set: { title, updatedAt: new Date() } },
-    { returnDocument: "after" },
-  )
-
-  return result as unknown as Conversation | null
+    return result
+  } catch (error) {
+    console.error(`Error updating conversation title ${conversationId}:`, error)
+    return null
+  }
 }
 
 export async function deleteConversation(conversationId: string): Promise<boolean> {
-  const conversations = await getCollection("conversations")
-  const result = await conversations.deleteOne({ _id: conversationId })
-  return result.deletedCount === 1
+  try {
+    const result = await conversationsCollection.deleteOne({ _id: conversationId })
+    return result.deletedCount === 1
+  } catch (error) {
+    console.error(`Error deleting conversation ${conversationId}:`, error)
+    return false
+  }
 }

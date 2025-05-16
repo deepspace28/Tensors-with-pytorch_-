@@ -4,11 +4,17 @@ import { useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Avatar } from "@/components/ui/avatar"
 import { ScientificLogo } from "@/components/scientific-logo"
-import { User } from "lucide-react"
+import { User, ExternalLink } from "lucide-react"
 import type { Message, MessageSection } from "@/types/chat"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { VisualizationRenderer } from "./visualization-renderer"
+import { SimulationDetector } from "@/components/chat/simulation-detector"
+import { Button } from "@/components/ui/button"
+import { shouldShowSimLabButton } from "@/lib/query-classifier"
+import { useChat } from "@/contexts/chat-context"
+import { ScientificResult } from "@/components/scientific-result"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -17,6 +23,7 @@ interface ChatMessagesProps {
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { navigateToLab } = useChat()
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -61,9 +68,29 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                         minute: "2-digit",
                       })}
                     </div>
+
+                    {/* Add simulation lab button for experiment requests */}
+                    {shouldShowSimLabButton(message.content) && (
+                      <div className="mt-2 pt-2 border-t border-blue-500/30">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-xs bg-blue-700 hover:bg-blue-800 border-blue-500"
+                          onClick={() => navigateToLab(message.content)}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Open in Simulation Lab
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Simulation detection for user messages */}
+                    <SimulationDetector message={message.content} />
                   </div>
                 ) : message.sections ? (
                   <StructuredResponse message={message} />
+                ) : message.role === "assistant" ? (
+                  <ParsedMessageContent content={message.content} timestamp={message.timestamp} />
                 ) : (
                   <div className="rounded-lg px-4 py-2 bg-gray-800 text-white">
                     <MarkdownRenderer content={message.content} />
@@ -89,18 +116,19 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 </Avatar>
               </div>
 
-              <div className="rounded-lg px-4 py-2 bg-gray-800">
-                <div className="flex space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce"></div>
-                  <div
-                    className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce"
-                    style={{ animationDelay: "0.2s" }}
-                  ></div>
-                  <div
-                    className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce"
-                    style={{ animationDelay: "0.4s" }}
-                  ></div>
-                </div>
+              <div className="w-full max-w-2xl">
+                <Card className="border border-gray-800 bg-gray-900/50">
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4 bg-gray-800" />
+                    <Skeleton className="h-4 w-full bg-gray-800" />
+                    <Skeleton className="h-4 w-5/6 bg-gray-800" />
+                    <div className="py-2">
+                      <Skeleton className="h-32 w-full bg-gray-800" />
+                    </div>
+                    <Skeleton className="h-4 w-2/3 bg-gray-800" />
+                    <Skeleton className="h-4 w-1/2 bg-gray-800" />
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </motion.div>
@@ -108,6 +136,35 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 
         <div ref={messagesEndRef} />
       </AnimatePresence>
+    </div>
+  )
+}
+
+function ParsedMessageContent({ content, timestamp }: { content: string; timestamp: Date }) {
+  let structured: any = {}
+  try {
+    structured = JSON.parse(content)
+  } catch (e) {
+    // fallback to markdown
+  }
+
+  return structured?.summary ? (
+    <ScientificResult
+      summary={structured.summary}
+      equations={structured.equations}
+      insight={structured.insight}
+      chart={structured.chart}
+      timestamp={timestamp}
+    />
+  ) : (
+    <div className="rounded-lg px-4 py-2 bg-gray-800 text-white">
+      <MarkdownRenderer content={content} />
+      <div className="text-xs opacity-50 mt-1 text-right">
+        {timestamp.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </div>
     </div>
   )
 }
@@ -152,6 +209,23 @@ function ResponseSection({ section }: { section: MessageSection }) {
 }
 
 function StructuredResponse({ message }: { message: Message }) {
+  const { navigateToLab } = useChat()
+  const lastUserMessage = useRef<string | null>(null)
+
+  // Find the last user message before this assistant message
+  useEffect(() => {
+    const messages = JSON.parse(localStorage.getItem("synaptiq-chat-messages") || "[]")
+    const index = messages.findIndex((msg: any) => msg.id === message.id)
+    if (index > 0) {
+      for (let i = index - 1; i >= 0; i--) {
+        if (messages[i].role === "user") {
+          lastUserMessage.current = messages[i].content
+          break
+        }
+      }
+    }
+  }, [message.id])
+
   if (!message.sections || message.sections.length === 0) {
     // If no sections, render the content directly with MarkdownRenderer
     return (
@@ -163,6 +237,21 @@ function StructuredResponse({ message }: { message: Message }) {
             minute: "2-digit",
           })}
         </div>
+
+        {/* Add simulation lab button if appropriate */}
+        {lastUserMessage.current && shouldShowSimLabButton(lastUserMessage.current) && (
+          <div className="mt-3 pt-2 border-t border-gray-700">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs bg-emerald-900/40 hover:bg-emerald-800/60 border-emerald-700/50 text-emerald-400"
+              onClick={() => navigateToLab(lastUserMessage.current!)}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Open in Simulation Lab
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -185,6 +274,21 @@ function StructuredResponse({ message }: { message: Message }) {
         {message.sections.map((section, index) => (
           <ResponseSection key={index} section={section} />
         ))}
+
+        {/* Add simulation lab button if appropriate */}
+        {lastUserMessage.current && shouldShowSimLabButton(lastUserMessage.current) && (
+          <div className="mt-3 pt-2 border-t border-gray-700">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs bg-emerald-900/40 hover:bg-emerald-800/60 border-emerald-700/50 text-emerald-400"
+              onClick={() => navigateToLab(lastUserMessage.current!)}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Open in Simulation Lab
+            </Button>
+          </div>
+        )}
 
         <div className="text-xs opacity-50 mt-1 text-right">
           {message.timestamp.toLocaleTimeString([], {

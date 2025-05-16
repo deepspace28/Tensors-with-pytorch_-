@@ -9,7 +9,7 @@ import { StaggerChildren, StaggerItem } from "@/components/motion"
 
 export function HeroSection() {
   return (
-    <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background via-background/95 to-background/90 overflow-hidden">
+    <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-black overflow-hidden">
       {/* Abstract background pattern */}
       <div className="absolute inset-0 z-0 opacity-20">
         <svg
@@ -40,21 +40,36 @@ export function HeroSection() {
       <div className="container px-4 md:px-6 relative z-20">
         <StaggerChildren className="mx-auto max-w-3xl text-center">
           <StaggerItem>
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
+            <motion.h1
+              className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl text-white"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            >
               Build the Future of Science with AI
-            </h1>
+            </motion.h1>
           </StaggerItem>
           <StaggerItem>
-            <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl mt-4">
+            <motion.p
+              className="mx-auto max-w-[700px] text-gray-300 md:text-xl lg:text-2xl mt-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            >
               Accelerate discoveries in quantum mechanics, physics, and mathematics using Synaptiq's specialized AI.
-            </p>
+            </motion.p>
           </StaggerItem>
           <StaggerItem>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <motion.div
+              className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+            >
               <Button
                 asChild
                 size="lg"
-                className="bg-primary hover:bg-primary/90 text-lg px-8 py-6 h-auto hover-lift hover-glow"
+                className="bg-gray-800 hover:bg-gray-700 text-white text-lg px-8 py-6 h-auto transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
               >
                 <Link href="/demo">
                   Try Demo <ArrowRight className="ml-2 h-5 w-5" />
@@ -64,11 +79,11 @@ export function HeroSection() {
                 variant="outline"
                 size="lg"
                 asChild
-                className="border-primary/20 hover:bg-primary/10 text-lg px-8 py-6 h-auto hover-lift"
+                className="border-gray-600 hover:bg-gray-800 text-white text-lg px-8 py-6 h-auto transition-all duration-300 transform hover:scale-105"
               >
                 <Link href="/beta-access">Request Beta Access</Link>
               </Button>
-            </div>
+            </motion.div>
           </StaggerItem>
           <StaggerItem>
             <div className="mt-12 flex justify-center items-center gap-8">
@@ -78,35 +93,35 @@ export function HeroSection() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
               >
-                <div className="text-3xl font-bold text-primary">99.8%</div>
-                <div className="text-sm text-muted-foreground">Accuracy Rate</div>
+                <div className="text-3xl font-bold text-white">99.8%</div>
+                <div className="text-sm text-gray-400">Accuracy Rate</div>
               </motion.div>
-              <div className="h-12 w-px bg-border"></div>
+              <div className="h-12 w-px bg-gray-700"></div>
               <motion.div
                 className="flex flex-col items-center"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.8, duration: 0.5 }}
               >
-                <div className="text-3xl font-bold text-primary">24+</div>
-                <div className="text-sm text-muted-foreground">Research Papers</div>
+                <div className="text-3xl font-bold text-white">24+</div>
+                <div className="text-sm text-gray-400">Research Papers</div>
               </motion.div>
-              <div className="h-12 w-px bg-border"></div>
+              <div className="h-12 w-px bg-gray-700"></div>
               <motion.div
                 className="flex flex-col items-center"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 1, duration: 0.5 }}
               >
-                <div className="text-3xl font-bold text-primary">10k+</div>
-                <div className="text-sm text-muted-foreground">Researchers</div>
+                <div className="text-3xl font-bold text-white">10k+</div>
+                <div className="text-sm text-gray-400">Researchers</div>
               </motion.div>
             </div>
           </StaggerItem>
         </StaggerChildren>
       </div>
 
-      {/* Animated particles */}
+      {/* Enhanced animated particles */}
       <ParticleEffect />
     </section>
   )
@@ -115,7 +130,7 @@ export function HeroSection() {
 function ParticleEffect() {
   return (
     <div className="absolute inset-0 z-10 pointer-events-none">
-      {Array.from({ length: 20 }).map((_, i) => (
+      {Array.from({ length: 40 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full bg-white"
@@ -126,8 +141,10 @@ function ParticleEffect() {
             top: `${Math.random() * 100}%`,
           }}
           animate={{
-            opacity: [0, 0.5, 0],
+            opacity: [0, 0.7, 0],
             scale: [0, 1, 0],
+            x: [0, Math.random() * 100 - 50, 0],
+            y: [0, Math.random() * 100 - 50, 0],
           }}
           transition={{
             duration: Math.random() * 5 + 5,

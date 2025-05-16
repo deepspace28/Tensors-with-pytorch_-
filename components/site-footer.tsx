@@ -3,7 +3,7 @@ import { ScientificLogo } from "@/components/scientific-logo"
 
 export function SiteFooter() {
   return (
-    <footer className="border-t py-6 md:py-0">
+    <footer className="border-t border-border py-6 md:py-0">
       <div className="container flex flex-col items-start justify-between gap-4 md:h-24 md:flex-row md:items-center">
         <div className="flex flex-col items-start gap-4 px-8 md:flex-row md:gap-2 md:px-0">
           <Link href="/" className="flex items-center space-x-2">

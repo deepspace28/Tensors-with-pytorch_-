@@ -1,120 +1,221 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { Card } from "@/components/ui/card"
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts"
+import { useEffect, useRef } from "react"
+import Chart from "chart.js/auto"
 
 interface VisualizationRendererProps {
   content: string
-  type: "table" | "chart"
+  type: "chart" | "table"
 }
 
 export function VisualizationRenderer({ content, type }: VisualizationRendererProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [chartData, setChartData] = useState<any[] | null>(null)
-  const [chartType, setChartType] = useState<"line" | "bar" | "pie">("line")
-  const [tableData, setTableData] = useState<{ headers: string[]; rows: string[][] } | null>(null)
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const chartRef = useRef<Chart | null>(null)
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (type === "chart" && canvasRef.current) {
+      // Clean up previous chart
+      if (chartRef.current) {
+        chartRef.current.destroy()
+      }
 
-    try {
-      // Try to parse the content as JSON first (for chart data)
       try {
-        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)\n```/)
-
-        if (jsonMatch && jsonMatch[1]) {
-          const parsedData = JSON.parse(jsonMatch[1])
-
-          if (Array.isArray(parsedData)) {
-            setChartData(parsedData)
-
-            // Try to determine chart type  {
-            setChartData(parsedData)
-
-            // Try to determine chart type
-            if (content.toLowerCase().includes("line chart") || content.toLowerCase().includes("time series")) {
-              setChartType("line")
-            } else if (content.toLowerCase().includes("bar chart") || content.toLowerCase().includes("histogram")) {
-              setChartType("bar")
-            } else if (content.toLowerCase().includes("pie chart")) {
-              setChartType("pie")
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to parse chart data:", e)
-      }
-
-      // Try to parse table data
-      if (type === "table") {
+        // Try to parse chart data from content
+        let chartData
         try {
-          // Parse markdown table
-          const tableLines = content
-            .split("\n")
-            .filter((line) => line.trim().startsWith("|"))
-            .map((line) => line.trim())
-
-          if (tableLines.length >= 2) {
-            const headers = tableLines[0]
-              .split("|")
-              .filter((cell) => cell.trim() !== "")
-              .map((cell) => cell.trim())
-
-            // Skip the separator line (usually the second line with |---|---|)
-            const rows = tableLines.slice(2).map((line) =>
-              line
-                .split("|")
-                .filter((cell) => cell.trim() !== "")
-                .map((cell) => cell.trim()),
-            )
-
-            setTableData({ headers, rows })
+          // Look for JSON data in the content
+          const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/)
+          if (jsonMatch && jsonMatch[1]) {
+            chartData = JSON.parse(jsonMatch[1])
+          } else {
+            // If no JSON found, try to extract data from text
+            chartData = extractChartData(content)
           }
-        } catch (e) {
-          console.error("Failed to parse table data:", e)
+        } catch (error) {
+          console.error("Failed to parse chart data:", error)
+          chartData = generateFallbackChartData()
         }
+
+        // Create chart
+        const ctx = canvasRef.current.getContext("2d")
+        if (ctx) {
+          chartRef.current = new Chart(ctx, {
+            type: chartData.type || "line",
+            data: {
+              labels: chartData.labels || [],
+              datasets: chartData.datasets || [],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "top",
+                  labels: {
+                    color: "rgba(255, 255, 255, 0.8)",
+                  },
+                },
+                title: {
+                  display: !!chartData.title,
+                  text: chartData.title || "",
+                  color: "rgba(255, 255, 255, 0.8)",
+                },
+              },
+              scales: {
+                x: {
+                  ticks: {
+                    color: "rgba(255, 255, 255, 0.7)",
+                  },
+                  grid: {
+                    color: "rgba(255, 255, 255, 0.1)",
+                  },
+                },
+                y: {
+                  ticks: {
+                    color: "rgba(255, 255, 255, 0.7)",
+                  },
+                  grid: {
+                    color: "rgba(255, 255, 255, 0.1)",
+                  },
+                },
+              },
+            },
+          })
+        }
+      } catch (error) {
+        console.error("Error creating chart:", error)
       }
-    } catch (error) {
-      console.error("Error rendering visualization:", error)
+    }
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy()
+      }
     }
   }, [content, type])
 
-  if (type === "table" && tableData) {
-    return (
-      <Card className="overflow-x-auto border border-gray-800 bg-gray-900/50">
-        <div className="p-2">
-          <table className="w-full border-collapse">
+  // Extract chart data from text content
+  const extractChartData = (text: string) => {
+    // Default chart data
+    const chartData: any = {
+      type: "line",
+      labels: [],
+      datasets: [
+        {
+          label: "Data",
+          data: [],
+          backgroundColor: "rgba(75, 192, 192, 0.2)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
+        },
+      ],
+    }
+
+    // Try to extract data from text
+    const lines = text.split("\n")
+    let inDataSection = false
+    let hasExtractedData = false
+
+    for (const line of lines) {
+      // Look for table-like data
+      if (line.includes("|") && line.includes("-")) {
+        inDataSection = true
+        continue
+      }
+
+      if (inDataSection && line.includes("|")) {
+        const cells = line
+          .split("|")
+          .map((cell) => cell.trim())
+          .filter((cell) => cell)
+
+        if (cells.length >= 2) {
+          // First cell is label, second is data
+          chartData.labels.push(cells[0])
+          chartData.datasets[0].data.push(Number.parseFloat(cells[1]) || 0)
+          hasExtractedData = true
+        }
+      }
+    }
+
+    // If we couldn't extract data, generate some
+    if (!hasExtractedData) {
+      return generateFallbackChartData()
+    }
+
+    return chartData
+  }
+
+  // Generate fallback chart data
+  const generateFallbackChartData = () => {
+    return {
+      type: "line",
+      title: "Visualization",
+      labels: ["A", "B", "C", "D", "E", "F"],
+      datasets: [
+        {
+          label: "Data Series",
+          data: [12, 19, 3, 5, 2, 3],
+          backgroundColor: "rgba(75, 192, 192, 0.2)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
+        },
+      ],
+    }
+  }
+
+  // Render table from content
+  const renderTable = () => {
+    try {
+      const lines = content.split("\n")
+      const tableRows: string[][] = []
+      let inTable = false
+      let headerRow: string[] = []
+
+      for (const line of lines) {
+        if (line.includes("|")) {
+          const cells = line
+            .split("|")
+            .map((cell) => cell.trim())
+            .filter((cell) => cell)
+
+          if (cells.length > 0) {
+            if (!inTable) {
+              // This is the header row
+              headerRow = cells
+              inTable = true
+            } else if (!line.includes("---")) {
+              // Skip separator rows with dashes
+              tableRows.push(cells)
+            }
+          }
+        }
+      }
+
+      if (headerRow.length === 0) {
+        return <div className="text-gray-400">No table data found</div>
+      }
+
+      return (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-700">
             <thead>
-              <tr className="border-b border-gray-800">
-                {tableData.headers.map((header, i) => (
-                  <th key={i} className="p-2 text-left text-sm font-medium text-gray-300">
+              <tr>
+                {headerRow.map((header, index) => (
+                  <th
+                    key={index}
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider bg-gray-800"
+                  >
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {tableData.rows.map((row, i) => (
-                <tr key={i} className="border-b border-gray-800/50">
-                  {row.map((cell, j) => (
-                    <td key={j} className="p-2 text-sm text-gray-400">
+            <tbody className="divide-y divide-gray-700">
+              {tableRows.map((row, rowIndex) => (
+                <tr key={rowIndex} className={rowIndex % 2 === 0 ? "bg-gray-900" : "bg-gray-800"}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="px-4 py-2 text-sm text-gray-300">
                       {cell}
                     </td>
                   ))}
@@ -123,91 +224,22 @@ export function VisualizationRenderer({ content, type }: VisualizationRendererPr
             </tbody>
           </table>
         </div>
-      </Card>
-    )
+      )
+    } catch (error) {
+      console.error("Error rendering table:", error)
+      return <div className="text-red-400">Error rendering table</div>
+    }
   }
 
-  if (chartData && chartData.length > 0) {
-    return (
-      <Card className="border border-gray-800 bg-gray-900/50 p-4">
-        <ResponsiveContainer width="100%" height={300}>
-          {chartType === "line" ? (
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey={Object.keys(chartData[0])[0]} stroke="#888" tick={{ fill: "#888" }} />
-              <YAxis stroke="#888" tick={{ fill: "#888" }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#222", border: "1px solid #444" }}
-                labelStyle={{ color: "#fff" }}
-              />
-              <Legend />
-              {Object.keys(chartData[0])
-                .filter((key) => key !== Object.keys(chartData[0])[0])
-                .map((key, index) => (
-                  <Line
-                    key={key}
-                    type="monotone"
-                    dataKey={key}
-                    stroke={COLORS[index % COLORS.length]}
-                    activeDot={{ r: 8 }}
-                  />
-                ))}
-            </LineChart>
-          ) : chartType === "bar" ? (
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey={Object.keys(chartData[0])[0]} stroke="#888" tick={{ fill: "#888" }} />
-              <YAxis stroke="#888" tick={{ fill: "#888" }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#222", border: "1px solid #444" }}
-                labelStyle={{ color: "#fff" }}
-              />
-              <Legend />
-              {Object.keys(chartData[0])
-                .filter((key) => key !== Object.keys(chartData[0])[0])
-                .map((key, index) => (
-                  <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} />
-                ))}
-            </BarChart>
-          ) : (
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey={Object.keys(chartData[0])[1]}
-                nameKey={Object.keys(chartData[0])[0]}
-                label
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ backgroundColor: "#222", border: "1px solid #444" }}
-                labelStyle={{ color: "#fff" }}
-              />
-              <Legend />
-            </PieChart>
-          )}
-        </ResponsiveContainer>
-      </Card>
-    )
-  }
-
-  // Fallback for when we can't parse the data
   return (
-    <Card className="border border-gray-800 bg-gray-900/50">
-      <div ref={containerRef} className="p-4 text-sm text-gray-400">
-        {!content || typeof content !== "string" || !content.trim() ? (
-          <p>No content to display.</p>
-        ) : (
-          <pre className="whitespace-pre-wrap">{content}</pre>
-        )}
-      </div>
-    </Card>
+    <div className="bg-gray-800 rounded-md p-4 my-2">
+      {type === "chart" ? (
+        <div className="h-64">
+          <canvas ref={canvasRef} />
+        </div>
+      ) : (
+        renderTable()
+      )}
+    </div>
   )
 }

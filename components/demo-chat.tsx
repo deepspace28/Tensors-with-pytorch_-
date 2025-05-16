@@ -41,7 +41,9 @@ Quantum mechanics is a fundamental theory in physics that describes nature at th
 
 The Schrödinger equation is central to quantum mechanics:
 
-\\[ i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\hat{H} \\Psi(\\mathbf{r}, t) \\]
+\`\`\`math
+i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\hat{H} \\Psi(\\mathbf{r}, t)
+\`\`\`
 
 Where:
 - \$$ \\Psi(\\mathbf{r}, t) \$$ is the wave function
@@ -51,7 +53,9 @@ Where:
 
 The uncertainty principle, formulated by Werner Heisenberg, states that:
 
-\\[ \\Delta x \\Delta p \\geq \\frac{\\hbar}{2} \\]
+\`\`\`math
+\\Delta x \\Delta p \\geq \\frac{\\hbar}{2}
+\`\`\`
 
 This means we cannot simultaneously know both the position and momentum of a particle with arbitrary precision.
   `,
@@ -62,7 +66,9 @@ Einstein's theory of relativity consists of two physical theories: special relat
 
 The famous mass-energy equivalence formula:
 
-\\[ E = mc^2 \\]
+\`\`\`math
+E = mc^2
+\`\`\`
 
 Where:
 - \$$ E \$$ is energy
@@ -71,7 +77,9 @@ Where:
 
 In general relativity, the Einstein field equations are:
 
-\\[ G_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu} \\]
+\`\`\`math
+G_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}
+\`\`\`
 
 These equations describe how the curvature of spacetime is related to the energy and momentum of matter and radiation.
   `,
@@ -82,11 +90,15 @@ Mathematics is the study of numbers, quantity, structure, space, and change.
 
 The quadratic formula for solving equations of the form \$$ ax^2 + bx + c = 0 \$$ is:
 
-\\[ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} \\]
+\`\`\`math
+x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+\`\`\`
 
 Euler's identity is considered one of the most beautiful equations in mathematics:
 
-\\[ e^{i\\pi} + 1 = 0 \\]
+\`\`\`math
+e^{i\\pi} + 1 = 0
+\`\`\`
 
 It connects five fundamental mathematical constants:
 - \$$ e \$$ (Euler's number)
@@ -102,7 +114,9 @@ Thermodynamics is the branch of physics that deals with heat, work, and temperat
 
 The first law of thermodynamics states that energy cannot be created or destroyed, only transformed:
 
-\\[ \\Delta U = Q - W \\]
+\`\`\`math
+\\Delta U = Q - W
+\`\`\`
 
 Where:
 - \$$ \\Delta U \$$ is the change in internal energy
@@ -111,7 +125,9 @@ Where:
 
 The entropy formula is:
 
-\\[ S = k_B \\ln W \\]
+\`\`\`math
+S = k_B \\ln W
+\`\`\`
 
 Where:
 - \$$ S \$$ is entropy
@@ -127,54 +143,68 @@ Here are some complex mathematical equations that demonstrate the LaTeX renderin
 
 Maxwell's equations in differential form:
 
+\`\`\`math
 \\begin{align}
 \\nabla \\cdot \\vec{E} &= \\frac{\\rho}{\\varepsilon_0} \\\\
 \\nabla \\cdot \\vec{B} &= 0 \\\\
 \\nabla \\times \\vec{E} &= -\\frac{\\partial \\vec{B}}{\\partial t} \\\\
 \\nabla \\times \\vec{B} &= \\mu_0\\vec{J} + \\mu_0\\varepsilon_0\\frac{\\partial \\vec{E}}{\\partial t}
 \\end{align}
+\`\`\`
 
 ### Navier-Stokes Equation
 
 The Navier-Stokes equation for incompressible flow:
 
-\\[ \\rho \\left( \\frac{\\partial \\vec{v}}{\\partial t} + \\vec{v} \\cdot \\nabla \\vec{v} \\right) = -\\nabla p + \\mu \\nabla^2 \\vec{v} + \\vec{f} \\]
+\`\`\`math
+\\rho \\left( \\frac{\\partial \\vec{v}}{\\partial t} + \\vec{v} \\cdot \\nabla \\vec{v} \\right) = -\\nabla p + \\mu \\nabla^2 \\vec{v} + \\vec{f}
+\`\`\`
 
 ### Fourier Transform
 
 The Fourier transform pair:
 
+\`\`\`math
 \\begin{align}
 F(\\omega) &= \\int_{-\\infty}^{\\infty} f(t) e^{-i\\omega t} \\, dt \\\\
 f(t) &= \\frac{1}{2\\pi} \\int_{-\\infty}^{\\infty} F(\\omega) e^{i\\omega t} \\, d\\omega
 \\end{align}
+\`\`\`
 
 ### Cauchy-Riemann Equations
 
 For a complex function $f(z) = u(x,y) + iv(x,y)$ to be analytic, it must satisfy:
 
+\`\`\`math
 \\begin{align}
 \\frac{\\partial u}{\\partial x} &= \\frac{\\partial v}{\\partial y} \\\\
 \\frac{\\partial u}{\\partial y} &= -\\frac{\\partial v}{\\partial x}
 \\end{align}
+\`\`\`
 
 ### Einstein Field Equations
 
 The full Einstein field equations with cosmological constant:
 
-\\[ R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu} \\]
+\`\`\`math
+R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}
+\`\`\`
 
 ### Schrödinger Equation
 
 The time-dependent Schrödinger equation:
 
-\\[ i\\hbar \\frac{\\partial}{\\partial t}\\Psi(\\mathbf{r},t) = \\left [ -\\frac{\\hbar^2}{2m}\\nabla^2 + V(\\mathbf{r},t)\\right ] \\Psi(\\mathbf{r},t) \\]
+\`\`\`math
+i\\hbar \\frac{\\partial}{\\partial t}\\Psi(\\mathbf{r},t) = \\left [ -\\frac{\\hbar^2}{2m}\\nabla^2 + V(\\mathbf{r},t)\\right ] \\Psi(\\mathbf{r},t)
+\`\`\`
 
 ### Dirac Equation
 
 The Dirac equation in covariant form:
 
-\\[ (i\\gamma^\\mu \\partial_\\mu - m)\\psi = 0 \\]
+\`\`\`math
+(i\\gamma^\\mu \\partial_\\mu - m)\\psi = 0
+\`\`\`
 
 Where $\\gamma^\\mu$ are the Dirac gamma matrices.
   `,
@@ -292,10 +322,10 @@ export function DemoChat() {
   }
 
   return (
-    <Card className="border border-primary/10 shadow-lg">
+    <Card className="border border-gray-200 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+          <span className="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
           Synaptiq Demo
         </CardTitle>
       </CardHeader>
@@ -313,10 +343,10 @@ export function DemoChat() {
                 <div
                   className={`rounded-lg px-4 py-2 max-w-[80%] ${
                     message.role === "user"
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-gray-800 text-white"
                       : message.isError
-                        ? "bg-destructive/10 border border-destructive/20"
-                        : "bg-muted"
+                        ? "bg-gray-100 border border-red-200"
+                        : "bg-gray-700 text-white"
                   }`}
                 >
                   {message.role === "user" ? (
@@ -329,15 +359,15 @@ export function DemoChat() {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="rounded-lg px-4 py-2 max-w-[80%] bg-muted">
+                <div className="rounded-lg px-4 py-2 max-w-[80%] bg-gray-700 text-white">
                   <div className="flex space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-primary animate-bounce"></div>
+                    <div className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"></div>
                     <div
-                      className="h-2 w-2 rounded-full bg-primary animate-bounce"
+                      className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"
                       style={{ animationDelay: "0.2s" }}
                     ></div>
                     <div
-                      className="h-2 w-2 rounded-full bg-primary animate-bounce"
+                      className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"
                       style={{ animationDelay: "0.4s" }}
                     ></div>
                   </div>
@@ -368,9 +398,7 @@ export function DemoChat() {
                   <Lightbulb className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Show complex LaTeX equations</p>
-              </TooltipContent>
+              <TooltipContent>Show complex equations</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

@@ -50,7 +50,7 @@ class Logger {
       }
 
       const timestamp = new Date().toLocaleTimeString()
-      const prefix = `${colors[entry.level]}[${entry.level.toUpperCase()}]\x1b[0m [${timestamp}] [${this.context}]:`
+      const prefix = `${colors[entry.level]}[${entry.level.toUpperCase()}]\x1b[0m [${this.context}]:`
 
       if (entry.data) {
         console.log(`${prefix} ${entry.message}`, entry.data)
@@ -93,3 +93,5 @@ class Logger {
 export function createLogger(context: string): Logger {
   return new Logger(context)
 }
+
+export const logger = createLogger("App")

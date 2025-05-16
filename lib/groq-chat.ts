@@ -1,10 +1,6 @@
-// lib/groq-chat.ts
-
-import type { Message } from "@/types/chat"
-
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-export async function sendChatRequest(messages: Message[], apiKey: string) {
+export async function sendChatRequest(messages: any[], apiKey: string) {
   try {
     const response = await fetch(GROQ_API_URL, {
       method: "POST",

@@ -1,54 +1,86 @@
 "use client"
 
-import { useChat } from "@/contexts/chat-context"
+import { useEffect, useState } from "react"
 import { ChatHeader } from "./chat-header"
-import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
-import { ModeSelector } from "./mode-selector"
-import { LimitReachedModal } from "./limit-reached-modal"
+import { ChatMessages } from "./chat-messages"
 import { ConversationSidebar } from "./conversation-sidebar"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Menu } from "lucide-react"
+import { ModeSelector } from "./mode-selector"
+import { BetaSignupModal } from "./beta-signup-modal"
+import { LoginModal } from "./login-modal"
+import { LimitReachedModal } from "./limit-reached-modal"
+import { UpgradeModal } from "./upgrade-modal"
+import { useChat } from "@/contexts/chat-context"
 
 export function ChatInterface() {
-  const { messages, isLoading, sendMessage, queriesRemaining, isGuest, showLimitModal, closeLimitModal } = useChat()
-  const [showSidebar, setShowSidebar] = useState(false)
+  const {
+    chatState,
+    sendMessage,
+    clearMessages,
+    setInteractionMode,
+    showBetaModal,
+    setShowBetaModal,
+    showLoginModal,
+    setShowLoginModal,
+    showLimitModal,
+    setShowLimitModal,
+    showUpgradeModal,
+    setShowUpgradeModal,
+  } = useChat()
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  // Check if we should show the beta access modal after 3 messages
+  useEffect(() => {
+    const userMessageCount = chatState.messages.filter((m) => m.role === "user").length
+    if (chatState.isGuest && userMessageCount === 3 && !showBetaModal && !showLoginModal && !showLimitModal) {
+      setShowLimitModal(true)
+    }
+  }, [chatState.messages, chatState.isGuest, showBetaModal, showLoginModal, showLimitModal, setShowLimitModal])
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a]">
-      <ChatHeader onToggleSidebar={() => setShowSidebar(!showSidebar)} />
+    <div className="flex h-screen bg-[#000] text-white">
+      {/* Sidebar */}
+      <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <div className="flex-1 overflow-hidden flex">
-        {/* Mobile sidebar toggle */}
-        <div className="md:hidden absolute top-16 left-4 z-10">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="text-gray-400 hover:text-white"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1">
+        <ChatHeader
+          onMenuClick={() => setIsSidebarOpen(true)}
+          onClearChat={clearMessages}
+          queriesRemaining={chatState.queriesRemaining}
+          isGuest={chatState.isGuest}
+          onLoginClick={() => setShowLoginModal(true)}
+          onUpgradeClick={() => setShowUpgradeModal(true)}
+        />
 
-        {/* Sidebar */}
-        <div className={`${showSidebar ? "block" : "hidden"} md:block h-full`}>
-          <ConversationSidebar />
-        </div>
-
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <ModeSelector />
-
+        <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
-            <ChatMessages messages={messages} isLoading={isLoading} />
+            <ChatMessages messages={chatState.messages} isLoading={chatState.isLoading} />
           </div>
 
-          <ChatInput onSendMessage={sendMessage} disabled={isLoading || queriesRemaining <= 0} />
+          <div className="border-t border-gray-800 bg-[#0a0a0a] p-4">
+            <div className="mx-auto max-w-4xl">
+              <ModeSelector
+                selectedMode={chatState.interactionMode}
+                onModeChange={setInteractionMode}
+                disabled={chatState.isLoading}
+              />
+            </div>
+          </div>
+
+          <ChatInput
+            onSendMessage={sendMessage}
+            disabled={chatState.isLoading || (chatState.isGuest && chatState.queriesRemaining <= 0)}
+          />
         </div>
       </div>
 
-      {showLimitModal && <LimitReachedModal isGuest={isGuest} onClose={closeLimitModal} />}
+      {/* Modals */}
+      {showBetaModal && <BetaSignupModal onClose={() => setShowBetaModal(false)} />}
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {showLimitModal && <LimitReachedModal onClose={() => setShowLimitModal(false)} />}
+      {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
     </div>
   )
 }

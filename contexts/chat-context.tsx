@@ -1,374 +1,186 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
-import { nanoid } from "nanoid"
-import type { InteractionMode, Message, MessageSection } from "@/types/chat"
-import type { Conversation } from "@/lib/conversation-service"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
+import type { Message } from "@/types/chat"
+import { v4 as uuidv4 } from "uuid"
 
-interface ChatContextType {
+// Define the interaction modes
+export type InteractionMode = "chat" | "research" | "teaching"
+
+// Define the chat state
+interface ChatState {
   messages: Message[]
   isLoading: boolean
   interactionMode: InteractionMode
-  queriesRemaining: number
   isGuest: boolean
-  showLimitModal: boolean
-  conversationId: string | null
-  conversations: Conversation[]
-  setInteractionMode: (mode: InteractionMode) => void
-  sendMessage: (content: string) => Promise<void>
-  clearChat: () => void
-  closeLimitModal: () => void
-  createNewConversation: () => Promise<void>
-  loadConversation: (id: string) => Promise<void>
-  deleteConversation: (id: string) => Promise<void>
-  updateConversationTitle: (id: string, title: string) => Promise<void>
+  queriesRemaining: number
 }
 
+// Define the chat context
+interface ChatContextType {
+  chatState: ChatState
+  sendMessage: (content: string) => void
+  clearMessages: () => void
+  setInteractionMode: (mode: InteractionMode) => void
+  showBetaModal: boolean
+  setShowBetaModal: (show: boolean) => void
+  showLoginModal: boolean
+  setShowLoginModal: (show: boolean) => void
+  showLimitModal: boolean
+  setShowLimitModal: (show: boolean) => void
+  showUpgradeModal: boolean
+  setShowUpgradeModal: (show: boolean) => void
+  navigateToLab: (prompt: string) => void
+}
+
+// Create the chat context
 const ChatContext = createContext<ChatContextType | undefined>(undefined)
 
-export const useChat = () => {
-  const context = useContext(ChatContext)
-  if (!context) {
-    throw new Error("useChat must be used within a ChatProvider")
-  }
-  return context
-}
+// Create the chat provider
+export function ChatProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const [chatState, setChatState] = useState<ChatState>({
+    messages: [],
+    isLoading: false,
+    interactionMode: "chat",
+    isGuest: true,
+    queriesRemaining: 5,
+  })
 
-interface ChatProviderProps {
-  children: React.ReactNode
-}
-
-export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Welcome to Synaptiq. How can I assist with your scientific research today?",
-      timestamp: new Date(),
-    },
-  ])
-  const [isLoading, setIsLoading] = useState(false)
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("exploratory")
-  const [queriesRemaining, setQueriesRemaining] = useState<number>(3)
-  const [isGuest, setIsGuest] = useState(true)
+  const [showBetaModal, setShowBetaModal] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [showLimitModal, setShowLimitModal] = useState(false)
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [userId, setUserId] = useState<string>("anonymous")
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
-  // Initialize user session
+  // Load messages from localStorage on mount
   useEffect(() => {
-    // In a real app, this would check authentication status
-    const storedUser = localStorage.getItem("synaptiq-user")
-
-    if (storedUser) {
-      const user = JSON.parse(storedUser)
-      setIsGuest(user.isGuest)
-      setQueriesRemaining(user.queriesRemaining)
-      setUserId(user.id)
-    } else {
-      // Create a guest user
-      const guestId = `guest-${nanoid(8)}`
-      const guestUser = {
-        id: guestId,
-        isGuest: true,
-        queriesRemaining: 3,
+    const savedMessages = localStorage.getItem("synaptiq-chat-messages")
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages)
+        // Convert string timestamps back to Date objects
+        const messagesWithDateTimestamps = parsedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }))
+        setChatState((prev) => ({ ...prev, messages: messagesWithDateTimestamps }))
+      } catch (error) {
+        console.error("Error parsing saved messages:", error)
       }
-      localStorage.setItem("synaptiq-user", JSON.stringify(guestUser))
-      setIsGuest(true)
-      setQueriesRemaining(3)
-      setUserId(guestId)
     }
   }, [])
 
-  // Load user conversations
+  // Save messages to localStorage when they change
   useEffect(() => {
-    if (userId !== "anonymous") {
-      loadUserConversations()
-    }
-  }, [userId])
+    localStorage.setItem("synaptiq-chat-messages", JSON.stringify(chatState.messages))
+  }, [chatState.messages])
 
-  // Update user session when queries remaining changes
-  useEffect(() => {
-    const storedUser = localStorage.getItem("synaptiq-user")
-    if (storedUser) {
-      const user = JSON.parse(storedUser)
-      user.queriesRemaining = queriesRemaining
-      localStorage.setItem("synaptiq-user", JSON.stringify(user))
-    }
-  }, [queriesRemaining])
-
-  const loadUserConversations = async () => {
-    try {
-      const response = await fetch(`/api/conversations?userId=${userId}`, {
-        headers: {
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setConversations(data.conversations)
-      }
-    } catch (error) {
-      console.error("Error loading conversations:", error)
-    }
-  }
-
-  const createNewConversation = async () => {
-    try {
-      const response = await fetch("/api/conversations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-        body: JSON.stringify({ userId }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setConversationId(data.conversation._id)
-        setConversations((prev) => [data.conversation, ...prev])
-
-        // Clear messages
-        setMessages([
-          {
-            id: "welcome",
-            role: "assistant",
-            content: "Welcome to Synaptiq. How can I assist with your scientific research today?",
-            timestamp: new Date(),
-          },
-        ])
-      }
-    } catch (error) {
-      console.error("Error creating conversation:", error)
-    }
-  }
-
-  const loadConversation = async (id: string) => {
-    try {
-      const response = await fetch(`/api/conversations/${id}`, {
-        headers: {
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setConversationId(data.conversation._id)
-        setMessages(data.conversation.messages)
-      }
-    } catch (error) {
-      console.error("Error loading conversation:", error)
-    }
-  }
-
-  const updateConversationTitle = async (id: string, title: string) => {
-    try {
-      const response = await fetch(`/api/conversations/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-        body: JSON.stringify({ title }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setConversations((prev) => prev.map((conv) => (conv._id === id ? data.conversation : conv)))
-      }
-    } catch (error) {
-      console.error("Error updating conversation title:", error)
-    }
-  }
-
-  const deleteConversation = async (id: string) => {
-    try {
-      const response = await fetch(`/api/conversations/${id}`, {
-        method: "DELETE",
-        headers: {
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-      })
-
-      if (response.ok) {
-        setConversations((prev) => prev.filter((conv) => conv._id !== id))
-
-        // If the deleted conversation is the current one, create a new one
-        if (conversationId === id) {
-          setConversationId(null)
-          setMessages([
-            {
-              id: "welcome",
-              role: "assistant",
-              content: "Welcome to Synaptiq. How can I assist with your scientific research today?",
-              timestamp: new Date(),
-            },
-          ])
-        }
-      }
-    } catch (error) {
-      console.error("Error deleting conversation:", error)
-    }
-  }
-
-  const decrementQueries = useCallback(() => {
-    setQueriesRemaining((prev) => {
-      const newCount = prev - 1
-      // Show limit modal when reaching zero
-      if (newCount <= 0) {
-        setShowLimitModal(true)
-      }
-      return newCount
-    })
-  }, [])
-
-  const closeLimitModal = () => {
-    setShowLimitModal(false)
-  }
-
-  const processResponse = (data: any): Message => {
-    // Ensure we have valid sections
-    let sections = data.sections || []
-
-    // Filter out empty sections or placeholder sections
-    sections = sections.filter((section: MessageSection) => {
-      const content = section.content || ""
-      return (
-        content.trim() !== "" &&
-        !content.includes("No derivation needed") &&
-        !content.includes("Not applicable") &&
-        !content.includes("No visualization needed")
-      )
-    })
-
-    return {
-      id: `assistant-${nanoid()}`,
-      role: "assistant",
-      content: data.text,
-      sections: sections,
-      timestamp: new Date(),
-    }
-  }
-
+  // Function to send a message
   const sendMessage = async (content: string) => {
-    if (!content.trim()) return
-
-    // Check if user has queries remaining
-    if (queriesRemaining <= 0) {
+    if (chatState.isGuest && chatState.queriesRemaining <= 0) {
       setShowLimitModal(true)
       return
     }
 
-    // Add user message
+    // Create a new user message
     const userMessage: Message = {
-      id: `user-${nanoid()}`,
+      id: uuidv4(),
       role: "user",
       content,
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
-    setIsLoading(true)
+    // Update the chat state with the new message
+    setChatState((prev) => ({
+      ...prev,
+      messages: [...prev.messages, userMessage],
+      isLoading: true,
+    }))
 
     try {
-      // Prepare the conversation history for the API
-      const conversationHistory = messages
-        .filter((msg) => msg.role !== "system")
-        .map(({ role, content }) => ({ role, content }))
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      // Add the new user message
-      conversationHistory.push({ role: "user", content })
-
-      // Call the API
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId,
-          "x-user-type": isGuest ? "anonymous" : "free",
-        },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          mode: interactionMode,
-          conversationId,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`)
+      // Create a new assistant message
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: `I've processed your query about "${content}". Here's what I found...`,
+        timestamp: new Date(),
       }
 
-      const data = await response.json()
-
-      // Parse the structured response
-      const assistantMessage = processResponse(data)
-
-      setMessages((prev) => [...prev, assistantMessage])
-      decrementQueries()
-
-      // If this is the first message in a new conversation, create a conversation
-      if (!conversationId) {
-        await createNewConversation()
-      }
-
-      // Refresh conversations list
-      await loadUserConversations()
+      // Update the chat state with the assistant message
+      setChatState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, assistantMessage],
+        isLoading: false,
+        queriesRemaining: prev.isGuest ? prev.queriesRemaining - 1 : prev.queriesRemaining,
+      }))
     } catch (error) {
       console.error("Error sending message:", error)
 
-      // Add error message
+      // Create an error message
       const errorMessage: Message = {
-        id: `error-${nanoid()}`,
-        role: "system",
-        content: "I apologize, but I encountered an error processing your request. Please try again.",
+        id: uuidv4(),
+        role: "assistant",
+        content: "I'm sorry, but I encountered an error processing your request. Please try again later.",
         timestamp: new Date(),
       }
 
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
+      // Update the chat state with the error message
+      setChatState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, errorMessage],
+        isLoading: false,
+      }))
     }
   }
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Welcome to Synaptiq. How can I assist with your scientific research today?",
-        timestamp: new Date(),
-      },
-    ])
-    setConversationId(null)
+  // Function to clear messages
+  const clearMessages = () => {
+    setChatState((prev) => ({ ...prev, messages: [] }))
   }
 
-  const value = {
-    messages,
-    isLoading,
-    interactionMode,
-    queriesRemaining,
-    isGuest,
-    showLimitModal,
-    conversationId,
-    conversations,
-    setInteractionMode,
-    sendMessage,
-    clearChat,
-    closeLimitModal,
-    createNewConversation,
-    loadConversation,
-    deleteConversation,
-    updateConversationTitle,
+  // Function to set the interaction mode
+  const setInteractionMode = (mode: InteractionMode) => {
+    setChatState((prev) => ({ ...prev, interactionMode: mode }))
   }
 
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
+  // Function to navigate to the lab page with a prompt
+  const navigateToLab = (prompt: string) => {
+    const encodedPrompt = encodeURIComponent(prompt)
+    router.push(`/lab?prompt=${encodedPrompt}`)
+  }
+
+  return (
+    <ChatContext.Provider
+      value={{
+        chatState,
+        sendMessage,
+        clearMessages,
+        setInteractionMode,
+        showBetaModal,
+        setShowBetaModal,
+        showLoginModal,
+        setShowLoginModal,
+        showLimitModal,
+        setShowLimitModal,
+        showUpgradeModal,
+        setShowUpgradeModal,
+        navigateToLab,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  )
+}
+
+// Create a hook to use the chat context
+export function useChat() {
+  const context = useContext(ChatContext)
+  if (context === undefined) {
+    throw new Error("useChat must be used within a ChatProvider")
+  }
+  return context
 }

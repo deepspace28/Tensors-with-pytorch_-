@@ -1,17 +1,89 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-
-export const metadata = {
-  title: "Black Hole Entropy Demo",
-  description: "Experience Synaptiq's black hole entropy simulation capabilities.",
-}
+import { ScientificResult } from "@/components/scientific-result"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function BlackHoleDemoPage() {
+  const [isLoading, setIsLoading] = useState(true)
+  const [result, setResult] = useState(`
+# Black Hole Entropy Analysis
+
+Black holes are regions of spacetime where gravity is so strong that nothing—no particles or even electromagnetic radiation such as light—can escape from it. The theory of general relativity predicts that a sufficiently compact mass can deform spacetime to form a black hole.
+
+## Bekenstein-Hawking Entropy Formula
+
+The entropy of a black hole is given by the Bekenstein-Hawking formula:
+
+$$S_{BH} = \\frac{k_B c^3 A}{4G\\hbar}$$
+
+Where:
+- $S_{BH}$ is the black hole entropy
+- $k_B$ is Boltzmann's constant
+- $c$ is the speed of light
+- $A$ is the area of the event horizon
+- $G$ is Newton's gravitational constant
+- $\\hbar$ is the reduced Planck constant
+
+## Information Paradox
+
+The black hole information paradox results from the combination of quantum mechanics and general relativity. It suggests that physical information could permanently disappear in a black hole, allowing many physical states to evolve into the same state.
+
+This is a problem because it violates a core principle of quantum mechanics: that information cannot be created or destroyed, only transformed.
+
+## Hawking Radiation
+
+Hawking radiation is black-body radiation that is predicted to be released by black holes due to quantum effects near the event horizon. It causes black holes to lose mass and eventually evaporate.
+
+The temperature of this radiation is:
+
+$$T = \\frac{\\hbar c^3}{8\\pi G M k_B}$$
+
+Where $M$ is the mass of the black hole.
+`)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchBlackHoleSimulation() {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Call the API to get black hole simulation results
+        const response = await fetch("/api/simulations/blackhole", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt:
+              "Simulate black hole entropy changes during evaporation and calculate the information paradox implications",
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`)
+        }
+
+        const data = await response.json()
+        setResult(data.result)
+      } catch (err) {
+        console.error("Error fetching black hole simulation:", err)
+        setError("Failed to load black hole simulation. Please try again later.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchBlackHoleSimulation()
+  }, [])
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -25,44 +97,48 @@ export default function BlackHoleDemoPage() {
               Visualize how entropy changes during black hole formation and evolution.
             </p>
           </div>
-          <div className="mx-auto mt-12 max-w-3xl">
-            <Card className="border-border/40">
-              <CardHeader>
-                <CardTitle>Black Hole Entropy Visualization</CardTitle>
-                <CardDescription>Simulation of entropy changes in a forming black hole</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="aspect-video rounded-md border border-border/40 bg-muted/30 flex items-center justify-center">
-                  <p className="text-muted-foreground">Black hole entropy simulation would appear here</p>
-                </div>
-                <div className="rounded-md border border-border/40 bg-muted/30 p-6 space-y-4">
-                  <p className="font-medium">Key Insights:</p>
-                  <div className="space-y-3 text-sm">
-                    <p>
-                      Black hole entropy is proportional to the area of the event horizon, not the volume as might be
-                      expected. This is known as the Bekenstein-Hawking entropy formula: S = kA/4ℓₚ², where k is
-                      Boltzmann's constant, A is the area of the horizon, and ℓₚ is the Planck length.
-                    </p>
-                    <p>
-                      As matter falls into a black hole, the total entropy of the universe increases. This is consistent
-                      with the second law of thermodynamics.
-                    </p>
-                    <p>
-                      Hawking radiation causes black holes to slowly evaporate over time, returning their entropy to the
-                      universe. For a solar mass black hole, this process would take approximately 10^67 years.
-                    </p>
-                    <p>
-                      The simulation demonstrates how information paradoxes arise when considering quantum mechanics and
-                      general relativity together in black hole physics.
-                    </p>
+          <div className="mx-auto mt-12 max-w-4xl">
+            {isLoading ? (
+              <Card className="border border-gray-800 bg-gray-900 text-white">
+                <CardHeader>
+                  <CardTitle>Black Hole Entropy Simulation</CardTitle>
+                  <CardDescription>Calculating entropy changes...</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-4 w-3/4 bg-gray-800" />
+                  <Skeleton className="h-4 w-full bg-gray-800" />
+                  <Skeleton className="h-4 w-5/6 bg-gray-800" />
+                  <div className="py-2">
+                    <Skeleton className="h-64 w-full bg-gray-800" />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <Skeleton className="h-4 w-2/3 bg-gray-800" />
+                  <Skeleton className="h-4 w-1/2 bg-gray-800" />
+                </CardContent>
+              </Card>
+            ) : error ? (
+              <Card className="border border-red-800 bg-red-900/20 text-white">
+                <CardHeader>
+                  <CardTitle>Error</CardTitle>
+                  <CardDescription>Failed to load black hole simulation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>{error}</p>
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    className="mt-4 bg-red-900/30 hover:bg-red-800/50"
+                  >
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <ScientificResult content={result} />
+            )}
             <div className="mt-8 flex justify-center">
               <Button asChild variant="outline">
-                <Link href="/">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+                <Link href="/demo">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Demos
                 </Link>
               </Button>
             </div>

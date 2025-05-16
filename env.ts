@@ -1,4 +1,2 @@
-export const env = {
-  // Use a fallback value only for development
-  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
-}
+// Remove the public environment variable
+// This file should not expose sensitive keys to the client

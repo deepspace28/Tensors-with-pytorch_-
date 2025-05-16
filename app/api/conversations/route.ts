@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
     headers.set("X-RateLimit-Remaining", rateLimit.remaining.toString())
     headers.set("X-RateLimit-Reset", rateLimit.reset.toString())
 
-    return NextResponse.json({ conversations }, { headers })
+    return NextResponse.json({ conversations: conversations || [] }, { headers })
   } catch (error) {
     console.error("❌ Error getting conversations:", error)
-    return NextResponse.json({ error: "Failed to get conversations." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to get conversations.", conversations: [] }, { status: 500 })
   }
 }
 

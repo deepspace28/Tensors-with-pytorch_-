@@ -27,7 +27,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const conversation = await getConversation(id)
 
     if (!conversation) {
-      return NextResponse.json({ error: "Conversation not found." }, { status: 404 })
+      return NextResponse.json(
+        {
+          error: "Conversation not found.",
+          conversation: {
+            _id: id,
+            userId: userId,
+            title: "New Conversation",
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { status: 404 },
+      )
     }
 
     // Add rate limit headers to response
@@ -39,7 +52,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ conversation }, { headers })
   } catch (error) {
     console.error("❌ Error getting conversation:", error)
-    return NextResponse.json({ error: "Failed to get conversation." }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to get conversation.",
+        conversation: {
+          _id: params.id,
+          userId: "anonymous",
+          title: "New Conversation",
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -75,7 +101,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const conversation = await updateConversationTitle(id, title)
 
     if (!conversation) {
-      return NextResponse.json({ error: "Conversation not found." }, { status: 404 })
+      return NextResponse.json(
+        {
+          error: "Conversation not found.",
+          conversation: {
+            _id: id,
+            userId: userId,
+            title: title,
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { status: 404 },
+      )
     }
 
     // Add rate limit headers to response
