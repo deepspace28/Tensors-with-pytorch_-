@@ -1,2 +1,3 @@
-// Remove the public environment variable
-// This file should not expose sensitive keys to the client
+// Remove the NEXT_PUBLIC_GROQ_API_KEY export
+// The file should be empty or contain only non-sensitive environment variables
+export {}

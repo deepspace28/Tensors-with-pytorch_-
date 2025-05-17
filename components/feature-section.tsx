@@ -1,216 +1,4 @@
-"use client"
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { motion } from "framer-motion"
-
-// Custom SVG components for each technology
-const ScientificLLMIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="llm-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#llm-gradient)" strokeWidth="1">
-      {/* Brain structure */}
-      <path d="M12,3 C16.5,3 20,6.5 20,11 C20,15.5 16.5,19 12,19 C7.5,19 4,15.5 4,11 C4,6.5 7.5,3 12,3 Z" />
-
-      {/* Neural connections */}
-      <path d="M8,8 C10,6 14,6 16,8" />
-      <path d="M8,14 C10,16 14,16 16,14" />
-      <path d="M8,8 C6,10 6,14 8,14" />
-      <path d="M16,8 C18,10 18,14 16,14" />
-
-      {/* Text representation */}
-      <path d="M10,11 L14,11" strokeWidth="0.75" />
-      <path d="M9,13 L15,13" strokeWidth="0.75" />
-      <path d="M11,9 L13,9" strokeWidth="0.75" />
-    </g>
-    <circle cx="12" cy="11" r="1" fill="currentColor" />
-  </svg>
-)
-
-const QuantumSimulationsIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="quantum-sim-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#quantum-sim-gradient)" strokeWidth="1">
-      {/* Quantum orbit */}
-      <ellipse cx="12" cy="12" rx="8" ry="5" transform="rotate(30, 12, 12)" />
-      <ellipse cx="12" cy="12" rx="8" ry="5" transform="rotate(90, 12, 12)" />
-      <ellipse cx="12" cy="12" rx="8" ry="5" transform="rotate(150, 12, 12)" />
-
-      {/* Quantum particles */}
-      <circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.8" />
-      <circle cx="12" cy="7" r="1" fill="currentColor" />
-      <circle cx="17" cy="14" r="1" fill="currentColor" />
-      <circle cx="7" cy="14" r="1" fill="currentColor" />
-    </g>
-  </svg>
-)
-
-const ScientificValidationIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="validation-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#validation-gradient)" strokeWidth="1">
-      {/* Microscope base */}
-      <path d="M8,20 L16,20" />
-      <path d="M12,20 L12,16" />
-
-      {/* Microscope body */}
-      <path d="M10,16 L14,16" />
-      <path d="M9,14 L15,14" />
-      <path d="M10,12 L14,12" />
-      <path d="M11,10 L13,10" />
-      <path d="M12,10 L12,8" />
-
-      {/* Lens */}
-      <circle cx="12" cy="6" r="2" />
-
-      {/* Validation checkmark */}
-      <path d="M18,4 L20,6 L16,10" strokeWidth="1.5" stroke="currentColor" />
-    </g>
-  </svg>
-)
-
-const APIAccessIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="api-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#api-gradient)" strokeWidth="1">
-      {/* API brackets */}
-      <path d="M8,6 L4,12 L8,18" strokeWidth="1.5" />
-      <path d="M16,6 L20,12 L16,18" strokeWidth="1.5" />
-
-      {/* Connection lines */}
-      <path d="M10,8 L14,16" strokeWidth="1.5" />
-
-      {/* Data points */}
-      <circle cx="4" cy="12" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="6" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="18" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="6" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="18" r="0.5" fill="currentColor" />
-      <circle cx="20" cy="12" r="0.5" fill="currentColor" />
-    </g>
-  </svg>
-)
-
-const MathematicalModelingIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="math-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#math-gradient)" strokeWidth="1">
-      {/* Graph axes */}
-      <path d="M4,18 L20,18" />
-      <path d="M4,18 L4,4" />
-
-      {/* Function curve */}
-      <path d="M4,14 C8,4 12,20 20,8" strokeWidth="1.5" />
-
-      {/* Mathematical symbols */}
-      <path d="M8,10 L12,10" strokeWidth="0.75" />
-      <path d="M10,8 L10,12" strokeWidth="0.75" />
-      <path d="M16,10 L20,10" strokeWidth="0.75" />
-      <path d="M8,16 L12,16" strokeWidth="0.75" />
-    </g>
-    <circle cx="14" cy="12" r="1" fill="currentColor" />
-  </svg>
-)
-
-const ResearchDatabaseIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-100">
-    <defs>
-      <linearGradient id="db-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="1" />
-      </linearGradient>
-    </defs>
-    <g fill="none" stroke="url(#db-gradient)" strokeWidth="1">
-      {/* Database cylinders */}
-      <ellipse cx="12" cy="6" rx="8" ry="2" />
-      <path d="M4,6 L4,18" />
-      <path d="M20,6 L20,18" />
-      <ellipse cx="12" cy="18" rx="8" ry="2" />
-
-      {/* Connection lines */}
-      <path d="M8,10 L16,10" strokeWidth="0.5" strokeDasharray="1,1" />
-      <path d="M8,14" strokeWidth="0.5" strokeDasharray="1,1" />
-      <path d="M16,14" strokeWidth="0.5" strokeDasharray="1,1" />
-
-      {/* Data points */}
-      <circle cx="8" cy="10" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="10" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="14" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="14" r="0.5" fill="currentColor" />
-      <circle cx="12" cy="12" r="0.5" fill="currentColor" />
-    </g>
-  </svg>
-)
-
-// Feature items with their respective icons
-const features = [
-  {
-    title: "Scientific LLM",
-    description: "Specialized language model trained on scientific literature.",
-    content:
-      "Our LLM understands complex scientific concepts, can generate hypotheses, and assist with literature reviews.",
-    icon: <ScientificLLMIcon />,
-  },
-  {
-    title: "Quantum Simulations",
-    description: "Run complex quantum simulations with unprecedented accuracy.",
-    content:
-      "Simulate quantum systems, test theories, and explore quantum phenomena with our advanced simulation tools.",
-    icon: <QuantumSimulationsIcon />,
-  },
-  {
-    title: "Scientific Validation",
-    description: "Rigorous validation by leading researchers.",
-    content:
-      "All our models and algorithms undergo extensive peer review and validation by experts in physics and mathematics.",
-    icon: <ScientificValidationIcon />,
-  },
-  {
-    title: "API Access",
-    description: "Integrate with your existing research workflow.",
-    content:
-      "Our comprehensive API allows seamless integration with Python, MATLAB, R, and other research environments.",
-    icon: <APIAccessIcon />,
-  },
-  {
-    title: "Mathematical Modeling",
-    description: "Advanced mathematical modeling and analysis.",
-    content:
-      "Solve complex mathematical problems, verify proofs, and explore mathematical concepts with our specialized tools.",
-    icon: <MathematicalModelingIcon />,
-  },
-  {
-    title: "Research Database",
-    description: "Access to a vast database of scientific knowledge.",
-    content:
-      "Our platform is trained on millions of scientific papers, textbooks, and research data to provide comprehensive insights.",
-    icon: <ResearchDatabaseIcon />,
-  },
-]
 
 export function FeatureSection() {
   return (
@@ -229,26 +17,213 @@ export function FeatureSection() {
           </div>
         </div>
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <motion.div key={index} whileHover={{ y: -5 }} transition={{ type: "spring", stiffness: 300 }}>
-              <Card className="border border-zinc-800 bg-zinc-900 text-white hover:border-zinc-700 transition-all duration-300 h-full">
-                <CardHeader className="pb-2">
-                  <motion.div
-                    className="rounded-full bg-zinc-800 p-2 ring-1 ring-zinc-700"
-                    whileHover={{ rotate: 5, scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    {feature.icon}
-                  </motion.div>
-                  <CardTitle className="mt-2">{feature.title}</CardTitle>
-                  <CardDescription className="text-zinc-400">{feature.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-zinc-400">{feature.content}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <path
+                    d="M12 3L4 7V17L12 21L20 17V7L12 3Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M4 7L12 11L20 7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12 11V21"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 9L16 5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="3" r="1" fill="currentColor" />
+                  <circle cx="4" cy="7" r="1" fill="currentColor" />
+                  <circle cx="20" cy="7" r="1" fill="currentColor" />
+                  <circle cx="12" cy="21" r="1" fill="currentColor" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">Scientific LLM</CardTitle>
+              <CardDescription>Specialized language model trained on scientific literature.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Our LLM understands complex scientific concepts, can generate hypotheses, and assist with literature
+                reviews.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                  <path d="M12 4C16 8 16 16 12 20" stroke="currentColor" strokeWidth="2" />
+                  <path d="M12 4C8 8 8 16 12 20" stroke="currentColor" strokeWidth="2" />
+                  <path d="M4 12H20" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="1" fill="currentColor" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">Quantum Simulations</CardTitle>
+              <CardDescription>Run complex quantum simulations with unprecedented accuracy.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Simulate quantum systems, test theories, and explore quantum phenomena with our advanced simulation
+                tools.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M9 12L11 14L15 10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M12 6V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M16 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M12 16V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M8 12H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">Scientific Validation</CardTitle>
+              <CardDescription>Rigorous validation by leading researchers.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                All our models and algorithms undergo extensive peer review and validation by experts in physics and
+                mathematics.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
+                  <path d="M7 7L17 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M7 11L17 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M7 15L12 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M15 15L17 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M15 17V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M17 17V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">API Access</CardTitle>
+              <CardDescription>Integrate with your existing research workflow.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Our comprehensive API allows seamless integration with Python, MATLAB, R, and other research
+                environments.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <path d="M3 20L21 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M3 4L21 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2" />
+                  <path d="M12 6V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M6 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">Mathematical Modeling</CardTitle>
+              <CardDescription>Advanced mathematical modeling and analysis.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Solve complex mathematical problems, verify proofs, and explore mathematical concepts with our
+                specialized tools.
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="border border-primary/10 bg-card/60 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-2">
+              <div className="rounded-full bg-primary/10 p-2 ring-1 ring-primary/20">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-primary"
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <path d="M6.5 7V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M17.5 7V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M6.5 14V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M17.5 14V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <CardTitle className="mt-2">Research Database</CardTitle>
+              <CardDescription>Access to a vast database of scientific knowledge.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Our platform is trained on millions of scientific papers, textbooks, and research data to provide
+                comprehensive insights.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>

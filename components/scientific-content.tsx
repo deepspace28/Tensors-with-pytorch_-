@@ -39,7 +39,7 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
 
   if (loading) {
     return (
-      <Card className="w-full bg-secondary border">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Generating Scientific Content</CardTitle>
           <CardDescription>Please wait while we analyze your query...</CardDescription>
@@ -53,7 +53,7 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
 
   if (error) {
     return (
-      <Card className="w-full bg-secondary border">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Error</CardTitle>
           <CardDescription>Something went wrong</CardDescription>
@@ -68,7 +68,7 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
 
   if (!data) {
     return (
-      <Card className="w-full bg-secondary border">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>No Data</CardTitle>
           <CardDescription>No scientific content available</CardDescription>
@@ -93,7 +93,7 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
   }
 
   return (
-    <Card className="w-full bg-secondary border">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>{safeData.title}</CardTitle>
         <CardDescription>Scientific Analysis</CardDescription>
@@ -132,11 +132,11 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
                     }))}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" />
-                    <XAxis dataKey="x" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="x" />
+                    <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="y" stroke="#6b7280" activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="y" stroke="#8884d8" activeDot={{ r: 8 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -176,8 +176,7 @@ export function ScientificContent({ prompt, initialData }: ScientificContentProp
               <img
                 src={
                   (safeData.visualization.data.url as string) ||
-                  "/placeholder.svg?height=300&width=500&query=scientific visualization" ||
-                  "/placeholder.svg"
+                  "/placeholder.svg?height=300&width=500&query=scientific visualization"
                 }
                 alt={safeData.title}
                 className="max-h-64 rounded-md"

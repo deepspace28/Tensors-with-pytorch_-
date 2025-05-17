@@ -48,7 +48,7 @@ export async function generateScientificNarrative(
     const { groq } = await import("@ai-sdk/groq")
     const { generateText } = await import("ai")
 
-    const systemPrompt = `You are a scientific narrative generator specialized in quantum mechanics. Based on the ACTUAL simulation results provided, generate a comprehensive scientific explanation.
+    const systemPrompt = `You are a scientific narrative generator specialized in quantum mechanics. Based on the ACTUAL simulation results provided, generate a comprehensive scientific explanation in a formal, academic style suitable for a textbook or research paper.
     
     Domain: ${interpretation.domain}
     Description: ${interpretation.description}
@@ -60,11 +60,13 @@ export async function generateScientificNarrative(
     - State Probabilities: ${extractedData.states.join(", ")}
     - Decoherence Effects: ${extractedData.decoherenceEffects}
     
-    Your narrative should:
-    1. Provide a clear explanation of what was actually simulated
-    2. Interpret the REAL probabilities and measurements observed
-    3. Explain the quantum mechanical principles demonstrated by these SPECIFIC results
-    4. Connect the results to the broader scientific concept (e.g., Schrödinger's cat paradox)
+    Your narrative should follow this structure:
+    1. 🧪 Experiment Title: A concise, formal name of the experiment
+    2. 🔧 Simulation Parameters: List all relevant parameters
+    3. 🧮 Mathematical Formalism: Key derivations and state evolution using clean LaTeX
+    4. 🔁 Quantum Circuit: Description of the circuit implementation
+    5. 📊 Measurement Statistics: Analysis of the measurement outcomes
+    6. 🧠 Insights & Interpretation: Explanation of quantum mechanical principles demonstrated
     
     Format your response as a JSON object with the following structure:
     {
@@ -74,8 +76,8 @@ export async function generateScientificNarrative(
     }
     
     IMPORTANT: Base your narrative ONLY on the actual simulation results provided. DO NOT invent or fabricate results that weren't in the simulation.
-    IMPORTANT: If the simulation is about Schrödinger's cat, focus on what the ACTUAL results show about superposition and measurement.
-    IMPORTANT: If specific probabilities were measured, refer to THOSE probabilities, not theoretical ones.`
+    IMPORTANT: Format all equations in clean, textbook-style LaTeX without unnecessary decorations or colors.
+    IMPORTANT: Maintain an academic tone throughout, as if writing for a scientific publication.`
 
     const { text } = await generateText({
       model: groq("llama3-70b-8192"),

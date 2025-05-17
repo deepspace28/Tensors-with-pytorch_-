@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import Chart from "chart.js/auto"
 import { motion } from "framer-motion"
@@ -13,13 +12,14 @@ interface DynamicOutputProps {
   isProcessing: boolean
   simulationData: any
   results: any
+  steps?: string[]
 }
 
-export function DynamicOutput({ isProcessing, simulationData, results }: DynamicOutputProps) {
-  const [activeTab, setActiveTab] = useState("visualization")
+export function DynamicOutput({ isProcessing, simulationData, results, steps = [] }: DynamicOutputProps) {
   const chartRef = useRef<Chart | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const threeContainerRef = useRef<HTMLDivElement>(null)
+  const [katexLoaded, setKatexLoaded] = useState(false)
   const threeSceneRef = useRef<{
     scene: THREE.Scene
     camera: THREE.PerspectiveCamera
@@ -44,16 +44,23 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
   useEffect(() => {
     if (isProcessing || !simulationData || !results) return
 
-    if (activeTab === "visualization") {
-      if (simulationData.chartType === "3d") {
-        render3DVisualization()
-      } else {
-        render2DVisualization()
-      }
-    } else if (activeTab === "equations") {
+    if (simulationData.chartType === "3d") {
+      render3DVisualization()
+    } else {
+      render2DVisualization()
+    }
+  }, [isProcessing, simulationData, results])
+
+  // Render equations when KaTeX is loaded and data changes
+  useEffect(() => {
+    if (katexLoaded && simulationData?.equations) {
       renderEquations()
     }
-  }, [activeTab, isProcessing, simulationData, results])
+
+    if (katexLoaded && steps && steps.length > 0) {
+      renderSteps()
+    }
+  }, [katexLoaded, simulationData, steps])
 
   const render2DVisualization = () => {
     if (!canvasRef.current || !results) return
@@ -75,11 +82,11 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
           {
             label: simulationData.title,
             data: results.x.map((x: number, i: number) => ({ x, y: results.y[i] })),
-            borderColor: "rgb(75, 192, 192)",
-            backgroundColor: "rgba(75, 192, 192, 0.2)",
+            borderColor: "rgb(150, 150, 150)",
+            backgroundColor: "rgba(80, 80, 80, 0.2)",
             tension: 0.4,
             pointRadius: chartType === "scatter" ? 5 : 3,
-            pointBackgroundColor: "rgb(75, 192, 192)",
+            pointBackgroundColor: "rgb(150, 150, 150)",
             fill: chartType === "line",
           },
         ],
@@ -113,7 +120,7 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
               color: "rgb(200, 200, 200)",
             },
             grid: {
-              color: "rgba(100, 100, 100, 0.2)",
+              color: "rgba(50, 50, 50, 0.2)",
             },
           },
           y: {
@@ -126,7 +133,7 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
               color: "rgb(200, 200, 200)",
             },
             grid: {
-              color: "rgba(100, 100, 100, 0.2)",
+              color: "rgba(50, 50, 50, 0.2)",
             },
           },
         },
@@ -144,7 +151,7 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
 
     // Create scene
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x111111)
+    scene.background = new THREE.Color(0x050505)
 
     // Create camera
     const camera = new THREE.PerspectiveCamera(
@@ -166,7 +173,7 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
     controls.enableDamping = true
 
     // Add grid
-    const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222)
+    const gridHelper = new THREE.GridHelper(10, 10, 0x333333, 0x111111)
     scene.add(gridHelper)
 
     // Add axes
@@ -187,10 +194,10 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
 
       positions.push(x, y, z)
 
-      // Add colors based on z value or index
+      // Add grayscale colors based on z value or index
       const colorValue = results.z ? results.z[i] : i / results.x.length
       const color = new THREE.Color()
-      color.setHSL(0.6 - colorValue * 0.5, 1.0, 0.5)
+      color.setRGB(0.5 + colorValue * 0.5, 0.5 + colorValue * 0.5, 0.5 + colorValue * 0.5)
       colors.push(color.r, color.g, color.b)
     }
 
@@ -243,60 +250,111 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
   }
 
   const renderEquations = () => {
-    // KaTeX will be loaded via CDN and handled in the component
-    if (typeof window !== "undefined" && window.renderMathInElement && document.getElementById("equations-container")) {
-      window.renderMathInElement(document.getElementById("equations-container"), {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false },
-        ],
-        throwOnError: false,
-      })
+    try {
+      // Safely check if KaTeX is loaded and the container exists
+      if (
+        typeof window !== "undefined" &&
+        window.renderMathInElement &&
+        typeof window.renderMathInElement === "function" &&
+        document.getElementById("equations-container")
+      ) {
+        window.renderMathInElement(document.getElementById("equations-container"), {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+          throwOnError: false,
+        })
+      }
+    } catch (error) {
+      console.error("Error rendering equations:", error)
+    }
+  }
+
+  const renderSteps = () => {
+    try {
+      // Safely check if KaTeX is loaded and the container exists
+      if (
+        typeof window !== "undefined" &&
+        window.renderMathInElement &&
+        typeof window.renderMathInElement === "function" &&
+        document.getElementById("steps-container")
+      ) {
+        window.renderMathInElement(document.getElementById("steps-container"), {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+          throwOnError: false,
+        })
+      }
+    } catch (error) {
+      console.error("Error rendering steps:", error)
     }
   }
 
   // Load KaTeX from CDN
   useEffect(() => {
-    // Add KaTeX CSS if not already added
-    if (typeof window !== "undefined" && !document.querySelector('link[href*="katex"]')) {
-      const linkElement = document.createElement("link")
-      linkElement.rel = "stylesheet"
-      linkElement.href = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
-      linkElement.integrity = "sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn"
-      linkElement.crossOrigin = "anonymous"
-      document.head.appendChild(linkElement)
-    }
+    let isMounted = true
 
-    // Add KaTeX script if not already added
-    if (typeof window !== "undefined" && !window.katex) {
-      const scriptElement = document.createElement("script")
-      scriptElement.defer = true
-      scriptElement.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"
-      scriptElement.integrity = "sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx"
-      scriptElement.crossOrigin = "anonymous"
-      document.head.appendChild(scriptElement)
+    const loadKaTeX = async () => {
+      try {
+        // Add KaTeX CSS if not already added
+        if (!document.querySelector('link[href*="katex"]')) {
+          const linkElement = document.createElement("link")
+          linkElement.rel = "stylesheet"
+          linkElement.href = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
+          linkElement.crossOrigin = "anonymous"
+          document.head.appendChild(linkElement)
+        }
 
-      // Add auto-render extension
-      const autoRenderScript = document.createElement("script")
-      autoRenderScript.defer = true
-      autoRenderScript.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
-      autoRenderScript.integrity = "sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
-      autoRenderScript.crossOrigin = "anonymous"
-      autoRenderScript.onload = () => {
-        renderEquations()
+        // Add KaTeX script if not already added
+        if (!window.katex) {
+          // Load main KaTeX script
+          await new Promise<void>((resolve, reject) => {
+            const scriptElement = document.createElement("script")
+            scriptElement.defer = true
+            scriptElement.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"
+            scriptElement.crossOrigin = "anonymous"
+            scriptElement.onload = () => resolve()
+            scriptElement.onerror = (e) => reject(e)
+            document.head.appendChild(scriptElement)
+          })
+
+          // Load auto-render extension
+          await new Promise<void>((resolve, reject) => {
+            const autoRenderScript = document.createElement("script")
+            autoRenderScript.defer = true
+            autoRenderScript.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+            autoRenderScript.crossOrigin = "anonymous"
+            autoRenderScript.onload = () => resolve()
+            autoRenderScript.onerror = (e) => reject(e)
+            document.head.appendChild(autoRenderScript)
+          })
+        }
+
+        // Set KaTeX as loaded
+        if (isMounted) {
+          setKatexLoaded(true)
+        }
+      } catch (error) {
+        console.error("Error loading KaTeX:", error)
       }
-      document.head.appendChild(autoRenderScript)
-    } else if (typeof window !== "undefined" && window.renderMathInElement) {
-      renderEquations()
     }
-  }, [simulationData])
+
+    loadKaTeX()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   if (!simulationData) {
     return (
-      <Card className="border-gray-800 bg-gray-900 h-full">
+      <Card className="border-gray-900 bg-[#0a0a0a] h-full">
         <CardContent className="p-6 flex items-center justify-center h-[400px]">
           <div className="text-center">
-            <p className="text-gray-400">Enter a simulation prompt to begin</p>
+            <p className="text-gray-500">Enter a simulation prompt to begin</p>
           </div>
         </CardContent>
       </Card>
@@ -304,97 +362,115 @@ export function DynamicOutput({ isProcessing, simulationData, results }: Dynamic
   }
 
   return (
-    <Card className="border-gray-800 bg-gray-900 h-full">
-      <CardHeader className="pb-2 border-b border-gray-800">
-        <CardTitle className="text-lg font-medium text-white">{simulationData.title}</CardTitle>
-        <CardDescription className="text-gray-400">{simulationData.explanation}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Tabs defaultValue="visualization" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full bg-gray-800 rounded-none border-b border-gray-700">
-            <TabsTrigger value="visualization" className="data-[state=active]:bg-gray-700">
-              Visualization
-            </TabsTrigger>
-            <TabsTrigger value="equations" className="data-[state=active]:bg-gray-700">
-              Equations
-            </TabsTrigger>
-            <TabsTrigger value="data" className="data-[state=active]:bg-gray-700">
-              Data
-            </TabsTrigger>
-          </TabsList>
+    <div className="p-6 space-y-8 bg-[#0a0a0a]">
+      {isProcessing ? (
+        <div className="flex items-center justify-center h-[400px]">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
+            <p className="text-sm text-gray-500">Processing simulation...</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Step-by-Step Math Solution Section */}
+          {steps && steps.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-300">Step-by-Step Solution</h3>
+              <div id="steps-container" className="space-y-4 font-serif">
+                {steps.map((step, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.2 }}
+                    className="py-3 px-4 bg-[#111111] border border-gray-900 rounded-md overflow-x-auto"
+                  >
+                    <div className="flex items-start">
+                      <div className="bg-gray-800 text-gray-300 rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
+                        {index + 1}
+                      </div>
+                      <div className="flex-grow">
+                        {katexLoaded ? (
+                          <div dangerouslySetInnerHTML={{ __html: step }} />
+                        ) : (
+                          <div className="text-gray-400 font-mono text-sm whitespace-pre-wrap">{step}</div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <TabsContent value="visualization" className="p-0 m-0">
-            <div className="relative w-full h-[400px]">
-              {isProcessing ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
-                  <div className="flex flex-col items-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-cyan-500 mb-2" />
-                    <p className="text-sm text-gray-400">Processing simulation...</p>
-                  </div>
-                </div>
-              ) : simulationData.chartType === "3d" ? (
+          {/* Visualization Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-300">Visualization</h3>
+            <div className="relative w-full h-[300px] bg-[#0a0a0a] border border-gray-900 rounded-md overflow-hidden">
+              {simulationData.chartType === "3d" ? (
                 <div ref={threeContainerRef} className="w-full h-full" />
               ) : (
                 <canvas ref={canvasRef} className="w-full h-full" />
               )}
             </div>
-          </TabsContent>
+          </div>
 
-          <TabsContent value="equations" className="p-4 m-0">
-            <div id="equations-container" className="space-y-4 font-serif">
-              {simulationData.equations.map((equation: string, index: number) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.2 }}
-                  className="py-3 px-4 bg-gray-800/50 rounded-md overflow-x-auto"
-                >
-                  {`$$${equation}$$`}
-                </motion.div>
-              ))}
+          {/* Equations Section */}
+          {simulationData.equations && simulationData.equations.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-300">Mathematical Formulation</h3>
+              <div id="equations-container" className="space-y-4 font-serif">
+                {simulationData.equations.map((equation: string, index: number) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.2 }}
+                    className="py-3 px-4 bg-[#111111] border border-gray-900 rounded-md overflow-x-auto"
+                  >
+                    {katexLoaded ? (
+                      `$$${equation}$$`
+                    ) : (
+                      <div className="text-gray-400 font-mono text-sm whitespace-pre-wrap">{equation}</div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="data" className="p-0 m-0">
-            <div className="relative w-full h-[400px] overflow-auto">
-              {isProcessing ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
-                  <div className="flex flex-col items-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-cyan-500 mb-2" />
-                    <p className="text-sm text-gray-400">Processing data...</p>
-                  </div>
-                </div>
-              ) : results ? (
+          {/* Data Section */}
+          {results && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-300">Data</h3>
+              <div className="relative w-full max-h-[300px] overflow-auto rounded-md border border-gray-900">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-800">
-                      <th className="p-2 text-left text-gray-300 border-b border-gray-700">Index</th>
-                      <th className="p-2 text-left text-gray-300 border-b border-gray-700">X</th>
-                      <th className="p-2 text-left text-gray-300 border-b border-gray-700">Y</th>
-                      {results.z && <th className="p-2 text-left text-gray-300 border-b border-gray-700">Z</th>}
+                    <tr className="bg-[#111111]">
+                      <th className="p-2 text-left text-gray-400 border-b border-gray-900">Index</th>
+                      <th className="p-2 text-left text-gray-400 border-b border-gray-900">X</th>
+                      <th className="p-2 text-left text-gray-400 border-b border-gray-900">Y</th>
+                      {results.z && <th className="p-2 text-left text-gray-400 border-b border-gray-900">Z</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {results.x.map((x: number, index: number) => (
-                      <tr key={index} className={index % 2 === 0 ? "bg-gray-900" : "bg-gray-850"}>
-                        <td className="p-2 text-gray-300 border-b border-gray-800">{index}</td>
-                        <td className="p-2 text-gray-300 border-b border-gray-800">{x.toFixed(4)}</td>
-                        <td className="p-2 text-gray-300 border-b border-gray-800">{results.y[index].toFixed(4)}</td>
+                      <tr key={index} className={index % 2 === 0 ? "bg-[#0a0a0a]" : "bg-[#0f0f0f]"}>
+                        <td className="p-2 text-gray-400 border-b border-gray-900">{index}</td>
+                        <td className="p-2 text-gray-400 border-b border-gray-900">{x.toFixed(4)}</td>
+                        <td className="p-2 text-gray-400 border-b border-gray-900">{results.y[index].toFixed(4)}</td>
                         {results.z && (
-                          <td className="p-2 text-gray-300 border-b border-gray-800">{results.z[index].toFixed(4)}</td>
+                          <td className="p-2 text-gray-400 border-b border-gray-900">{results.z[index].toFixed(4)}</td>
                         )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              ) : (
-                <div className="p-4 text-center text-gray-400">No data available</div>
-              )}
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          )}
+        </>
+      )}
+    </div>
   )
 }

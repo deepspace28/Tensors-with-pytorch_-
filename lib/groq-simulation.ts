@@ -1,3 +1,6 @@
+// Remove the environment variable import
+// import * as env from "@/app/env"
+
 const SYSTEM_PROMPT = `You are a scientific experiment compiler. Given a freeform experiment request, return:
 
 A title
@@ -15,33 +18,29 @@ Respond in strict JSON format.`
 
 export async function generateSimulation(prompt: string) {
   try {
-    // Use only the server-side environment variable
-    const apiKey = process.env.GROQ_API_KEY
-
-    if (!apiKey) {
-      throw new Error("GROQ API key is not defined")
-    }
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Use the server-side API route instead of direct API call
+    const response = await fetch("/api/groq-proxy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 4000,
+        endpoint: "chat/completions",
+        payload: {
+          model: "llama3-70b-8192",
+          messages: [
+            {
+              role: "system",
+              content: SYSTEM_PROMPT,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 4000,
+        },
       }),
     })
 

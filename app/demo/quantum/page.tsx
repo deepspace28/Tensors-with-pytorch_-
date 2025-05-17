@@ -4,27 +4,35 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { ScientificResult } from "@/components/scientific-result"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { QuantumSimulationReport } from "@/components/quantum-simulation-report"
 
 export default function QuantumDemoPage({ searchParams }: { searchParams: { prompt?: string } }) {
   const [prompt, setPrompt] = useState(searchParams.prompt || "Simulate quantum entanglement between two qubits")
   const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<{
-    summary?: string
-    equations?: string[]
-    insight?: string
-    chart?: { title?: string; labels: string[]; values: number[] }
+    rawContent?: string
+    metadata?: {
+      id: string
+      backend: string
+      timestamp: string
+    }
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [rawResponse, setRawResponse] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<{
+    apiResponse?: any
+    errorDetails?: string
+    requestTime?: string
+    responseTime?: string
+  }>({})
 
   useEffect(() => {
     if (searchParams.prompt) {
@@ -44,12 +52,13 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
       setIsLoading(true)
       setError(null)
       setResult(null)
-      setRawResponse(null)
+      setDebugInfo({
+        requestTime: new Date().toISOString(),
+      })
 
       console.log("Running quantum simulation with prompt:", simulationPrompt)
 
-      // Use our internal API instead of directly calling the external API
-      // This allows us to handle errors more gracefully
+      // Call the API to get quantum simulation results
       const response = await fetch("/api/simulations/quantum", {
         method: "POST",
         headers: {
@@ -57,34 +66,50 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
         },
         body: JSON.stringify({
           prompt: simulationPrompt,
+          backend: "qiskit",
         }),
       })
 
-      // Check the content type to see if it's JSON
-      const contentType = response.headers.get("content-type")
-      if (contentType && !contentType.includes("application/json")) {
-        // If it's not JSON, get the text and display it for debugging
-        const text = await response.text()
-        setRawResponse(text.substring(0, 1000)) // Limit to first 1000 chars
-        throw new Error(`Received non-JSON response: ${contentType}`)
+      const responseTime = new Date().toISOString()
+
+      // First try to get the response as text to avoid JSON parsing errors
+      const responseText = await response.text()
+
+      let data: any
+      try {
+        // Try to parse the response as JSON
+        data = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("Failed to parse API response as JSON:", parseError)
+
+        // Generate a simulation ID
+        const simId = `QSIM-${Math.floor(1000 + Math.random() * 9000)}`
+
+        // If parsing fails, just use the raw text with metadata
+        setResult({
+          rawContent: responseText,
+          metadata: {
+            id: simId,
+            backend: "Synaptiq Engine v0.1 (Qiskit wrapper)",
+            timestamp: new Date().toLocaleString("en-US", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              timeZoneName: "short",
+            }),
+          },
+        })
+        return
       }
 
-      // Try to parse the response as JSON
-      let data
-      try {
-        data = await response.json()
-      } catch (parseError) {
-        // If we can't parse it as JSON, try to get the text
-        try {
-          const text = await response.text()
-          setRawResponse(text.substring(0, 1000)) // Limit to first 1000 chars
-        } catch (textError) {
-          console.error("Failed to get response text:", textError)
-        }
-        throw new Error(
-          `Failed to parse response as JSON: ${parseError instanceof Error ? parseError.message : "Unknown error"}`,
-        )
-      }
+      setDebugInfo((prev) => ({
+        ...prev,
+        apiResponse: data,
+        responseTime,
+      }))
 
       console.log("API response:", data)
 
@@ -92,44 +117,41 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
         throw new Error(`API request failed with status ${response.status}: ${data.error || "Unknown error"}`)
       }
 
-      // Handle the case where data contains a fallback due to API error
-      if (data.fallback) {
-        setError(`Using fallback data: ${data.error || "API error"}`)
-        setResult(data.fallback)
-        return
+      if (data.error) {
+        setDebugInfo((prev) => ({
+          ...prev,
+          errorDetails: data.details || data.error,
+        }))
+        throw new Error(data.error)
       }
 
-      // Extract the relevant data from the response
-      // Handle different response formats
-      const resultData = data.data || data
+      // Generate a simulation ID
+      const simId = `QSIM-${Math.floor(1000 + Math.random() * 9000)}`
 
-      // Create a properly structured result object
+      // Set the result with metadata
       setResult({
-        summary: resultData.summary || "Quantum simulation completed successfully.",
-        equations: Array.isArray(resultData.equations) ? resultData.equations : [],
-        insight: resultData.insight || resultData.explanation || "",
-        chart: resultData.chart || {
-          title: "Measurement Probabilities",
-          labels: resultData.labels || ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-          values: resultData.values || [0.5, 0, 0, 0.5],
+        rawContent: data.rawContent || responseText,
+        metadata: {
+          id: simId,
+          backend: "Synaptiq Engine v0.1 (Qiskit wrapper)",
+          timestamp: new Date().toLocaleString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            timeZoneName: "short",
+          }),
         },
       })
     } catch (err) {
       console.error("Error fetching quantum simulation:", err)
-      setError(`Failed to load quantum simulation: ${err instanceof Error ? err.message : "Unknown error"}`)
-
-      // Set fallback result for demo purposes
-      setResult({
-        summary: "Fallback quantum simulation result (error occurred in actual simulation).",
-        equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-        insight:
-          "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-        chart: {
-          labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-          values: [0.5, 0, 0, 0.5],
-          title: "Fallback Measurement Probabilities",
-        },
-      })
+      setError(`${err instanceof Error ? err.message : "Unknown error"}`)
+      setDebugInfo((prev) => ({
+        ...prev,
+        errorDetails: err instanceof Error ? err.stack : String(err),
+      }))
     } finally {
       setIsLoading(false)
     }
@@ -183,7 +205,14 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
                         disabled={isLoading}
                         className="bg-[#ff79c6] hover:bg-[#ff92d0] text-[#282a36]"
                       >
-                        Run
+                        {isLoading ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Running...
+                          </>
+                        ) : (
+                          "Run Simulation"
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -191,27 +220,46 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
               </CardContent>
             </Card>
 
-            {/* Raw response output for debugging */}
-            {rawResponse && (
-              <Card className="mb-4 border border-yellow-500 bg-yellow-900/20 text-white">
-                <CardHeader className="py-2">
-                  <CardTitle className="text-sm">Debug: Raw Response</CardTitle>
-                </CardHeader>
-                <CardContent className="py-2">
-                  <div className="text-xs overflow-auto max-h-40 whitespace-pre-wrap">{rawResponse}</div>
-                </CardContent>
-              </Card>
-            )}
-
-            {error && (
-              <Card className="mb-4 border border-red-800 bg-red-900/20 text-white">
-                <CardHeader className="py-2">
-                  <CardTitle className="text-sm">Error</CardTitle>
-                </CardHeader>
-                <CardContent className="py-2">
-                  <p className="text-red-400">{error}</p>
-                </CardContent>
-              </Card>
+            {/* Debug information */}
+            {(error || Object.keys(debugInfo).length > 0) && (
+              <Accordion type="single" collapsible className="mb-4">
+                <AccordionItem
+                  value="debug"
+                  className="border border-yellow-500 bg-yellow-900/20 text-white rounded-md"
+                >
+                  <AccordionTrigger className="px-4 py-2 text-sm font-medium">Debug Information</AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="space-y-2 text-xs">
+                      {debugInfo.requestTime && (
+                        <div>
+                          <strong>Request Time:</strong> {debugInfo.requestTime}
+                        </div>
+                      )}
+                      {debugInfo.responseTime && (
+                        <div>
+                          <strong>Response Time:</strong> {debugInfo.responseTime}
+                        </div>
+                      )}
+                      {debugInfo.errorDetails && (
+                        <div>
+                          <strong>Error Details:</strong>
+                          <pre className="mt-1 p-2 bg-black/30 rounded overflow-auto max-h-40">
+                            {debugInfo.errorDetails}
+                          </pre>
+                        </div>
+                      )}
+                      {debugInfo.apiResponse && (
+                        <div>
+                          <strong>API Response:</strong>
+                          <pre className="mt-1 p-2 bg-black/30 rounded overflow-auto max-h-40">
+                            {JSON.stringify(debugInfo.apiResponse, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             )}
 
             {isLoading ? (
@@ -231,20 +279,39 @@ export default function QuantumDemoPage({ searchParams }: { searchParams: { prom
                   <Skeleton className="h-4 w-1/2 bg-[#282a36]" />
                 </CardContent>
               </Card>
-            ) : result ? (
-              <ScientificResult
-                summary={result.summary}
-                equations={result.equations}
-                insight={result.insight}
-                chart={result.chart}
+            ) : error ? (
+              <Card className="border border-red-800 bg-red-900/20 text-white">
+                <CardHeader>
+                  <CardTitle>Error</CardTitle>
+                  <CardDescription>Failed to load quantum simulation</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>{error}</p>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={() => setSubmittedPrompt(prompt)}
+                    variant="outline"
+                    className="mt-4 bg-red-900/30 hover:bg-red-800/50"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry
+                  </Button>
+                </CardFooter>
+              </Card>
+            ) : result?.rawContent ? (
+              <QuantumSimulationReport
+                simulationData={{
+                  prompt: submittedPrompt || "",
+                  rawContent: result.rawContent,
+                  metadata: result.metadata,
+                }}
               />
             ) : submittedPrompt ? (
               <Card className="border border-[#6272a4] bg-[#44475a] text-white">
                 <CardHeader>
                   <CardTitle>No Results</CardTitle>
-                  <CardDescription className="text-[#f8f8f2] opacity-80">
-                    No valid scientific output to display.
-                  </CardDescription>
+                  <CardDescription className="text-[#f8f8f2] opacity-80">No output to display.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p>Try a different prompt or check the API connection.</p>

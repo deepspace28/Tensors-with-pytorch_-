@@ -19,28 +19,28 @@ export function VideoDemoSection() {
   return (
     <div className="w-full">
       <Tabs defaultValue="quantum" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 mb-8 bg-black border border-[#44475a] p-1 rounded-md">
+        <TabsList className="grid grid-cols-3 mb-8 bg-[#21222c] border border-[#44475a] p-1 rounded-md">
           <TabsTrigger
             value="quantum"
-            className="data-[state=active]:bg-[#44475a] data-[state=active]:text-white text-white hover:text-white hover:bg-[#333333] transition-all duration-200"
+            className="data-[state=active]:bg-[#6272a4] data-[state=active]:text-white text-[#8be9fd] hover:text-white hover:bg-[#44475a] transition-all duration-200"
           >
             Quantum Physics
           </TabsTrigger>
           <TabsTrigger
             value="derivation"
-            className="data-[state=active]:bg-[#44475a] data-[state=active]:text-white text-white hover:text-white hover:bg-[#333333] transition-all duration-200"
+            className="data-[state=active]:bg-[#6272a4] data-[state=active]:text-white text-[#8be9fd] hover:text-white hover:bg-[#44475a] transition-all duration-200"
           >
             Mathematical Derivations
           </TabsTrigger>
           <TabsTrigger
             value="physics"
-            className="data-[state=active]:bg-[#44475a] data-[state=active]:text-white text-white hover:text-white hover:bg-[#333333] transition-all duration-200"
+            className="data-[state=active]:bg-[#6272a4] data-[state=active]:text-white text-[#8be9fd] hover:text-white hover:bg-[#44475a] transition-all duration-200"
           >
             Physics Lab
           </TabsTrigger>
         </TabsList>
 
-        <div className="bg-black rounded-lg p-6 border border-[#44475a] shadow-xl">
+        <div className="bg-[#21222c] rounded-lg p-6 border border-[#44475a] shadow-xl">
           <motion.div key={activeTab} initial="hidden" animate="visible" variants={tabContentVariants}>
             <TabsContent value="quantum" className="mt-0">
               <QuantumVideoDemo />

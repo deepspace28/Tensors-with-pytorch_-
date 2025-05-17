@@ -68,6 +68,7 @@ export function DynamicLab({ initialPrompt = "" }: DynamicLabProps) {
         ],
         chartType: "line",
         explanation: `This simulation explores the behavior of ${promptText}. The results show how the system evolves over time based on the initial conditions and parameters.`,
+        prompt: promptText, // Store the original prompt
       }
 
       setSimulation(mockSimulation)

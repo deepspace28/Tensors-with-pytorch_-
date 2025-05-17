@@ -1,292 +1,189 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
 import type React from "react"
 
+import { useState } from "react"
 import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/site-footer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChatMessages } from "@/components/chat/chat-messages"
-import { SimulationDetector } from "@/components/chat/simulation-detector"
-import { VisualizationRenderer } from "@/components/chat/visualization-renderer"
-import { ModeSelector } from "@/components/chat/mode-selector"
-import { Loader2, Send, Sparkles, Beaker, FlaskConical, Atom } from "lucide-react"
-import { useChat } from "@/contexts/chat-context"
-import type { Message } from "@/types/chat"
-import { detectSimulationType } from "@/lib/engines/simulationRouter"
-import { PresetSelector } from "@/components/simulation-lab/preset-selector"
-import { QuantumCircuitVisualization } from "@/components/simulation-lab/quantum-circuit-visualization"
-import { AdvancedQuantumParameters } from "@/components/simulation-lab/advanced-quantum-parameters"
-import { quantumPresets } from "@/lib/simulation-presets/quantum-presets"
+import { ScientificResult } from "@/components/scientific-result"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Search, FileText, Download } from "lucide-react"
 
 export default function ChatPage() {
-  const { chatState, sendMessage, clearMessages, setInteractionMode } = useChat()
+  const [query, setQuery] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [result, setResult] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [paperTitle, setPaperTitle] = useState("Scientific Research Assistant")
+  const [response, setResponse] = useState<any>(null)
 
-  const [input, setInput] = useState("")
-  const [activeTab, setActiveTab] = useState("chat")
-  const [simulationType, setSimulationType] = useState<string | null>(null)
-  const [simulationMode, setSimulationMode] = useState("quantum")
-  const [selectedPreset, setSelectedPreset] = useState("")
-  const [isRunningSimulation, setIsRunningSimulation] = useState(false)
-  const [simulationResult, setSimulationResult] = useState<any>(null)
-  const [advancedParams, setAdvancedParams] = useState<Record<string, any>>({})
-
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Scroll to bottom of messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [chatState.messages])
-
-  // Detect simulation type from input
-  useEffect(() => {
-    if (input.trim()) {
-      const type = detectSimulationType(input)
-      setSimulationType(type)
-    } else {
-      setSimulationType(null)
-    }
-  }, [input])
-
-  const handleSendMessage = async () => {
-    if (!input.trim()) return
-
-    if (activeTab === "simulation") {
-      await runSimulation()
-    } else {
-      sendMessage(input)
-      setInput("")
-    }
-  }
-
-  const runSimulation = async () => {
-    setIsRunningSimulation(true)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!query.trim()) return
 
     try {
-      // Prepare simulation parameters
-      const params = {
-        prompt: input,
-        type: simulationMode,
-        preset: selectedPreset || undefined,
-        ...advancedParams,
-      }
+      setIsLoading(true)
+      setError(null)
 
-      // Call the appropriate API endpoint based on simulation type
-      const endpoint = `/api/simulations/${simulationMode}`
-      const response = await fetch(endpoint, {
+      const apiResponse = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Simulation failed: ${response.statusText}`)
+      if (!apiResponse.ok) {
+        throw new Error(`API request failed with status ${apiResponse.status}`)
       }
 
-      const result = await response.json()
+      const data = await apiResponse.json()
+      setResult(data.result)
+      setResponse(data) // Store the full response for debugging
 
-      // Add simulation result to chat
-      const simulationMessage: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: `Simulation results for: ${input}`,
-        timestamp: new Date(),
-        simulationResult: result.data || result,
-        simulationType: simulationMode,
-      }
-
-      chatState.messages.push(simulationMessage)
-      setSimulationResult(result.data || result)
-      setInput("")
-    } catch (error) {
-      console.error("Simulation error:", error)
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: `Error running simulation: ${error instanceof Error ? error.message : "Unknown error"}`,
-        timestamp: new Date(),
-      }
-      chatState.messages.push(errorMessage)
+      // Generate a title based on the query
+      setPaperTitle(generatePaperTitle(query))
+    } catch (err) {
+      console.error("Error processing query:", err)
+      setError("Failed to process your query. Please try again later.")
     } finally {
-      setIsRunningSimulation(false)
+      setIsLoading(false)
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
+  function generatePaperTitle(query: string): string {
+    // Convert the query into a research paper title
+    const cleanQuery = query.trim()
+    if (!cleanQuery) return "Scientific Research Assistant"
+
+    // Capitalize first letter of each word
+    const words = cleanQuery.split(" ")
+    const capitalizedWords = words.map((word) =>
+      word.length > 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
+    )
+
+    // If query is a question, convert to statement
+    let title = capitalizedWords.join(" ")
+    if (title.endsWith("?")) {
+      title = title.slice(0, -1)
+      if (title.toLowerCase().startsWith("what is")) {
+        title = title.slice(8) + ": An Analysis"
+      } else if (title.toLowerCase().startsWith("how does")) {
+        title = title.slice(9) + ": Mechanisms and Processes"
+      } else if (title.toLowerCase().startsWith("why")) {
+        title = title.slice(4) + ": Causal Factors and Implications"
+      } else {
+        title += ": A Comprehensive Investigation"
+      }
+    } else {
+      title += ": A Scientific Analysis"
     }
+
+    return title
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-white">
+    <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="flex-1 flex flex-col">
-        <div className="container mx-auto py-4 flex-1 flex flex-col">
-          <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-4 bg-gray-900 border border-gray-800">
-              <TabsTrigger value="chat" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">
-                <Sparkles className="h-4 w-4 mr-2" />
-                Scientific Chat
-              </TabsTrigger>
-              <TabsTrigger
-                value="simulation"
-                className="data-[state=active]:bg-gray-800 data-[state=active]:text-white"
-              >
-                <Atom className="h-4 w-4 mr-2" />
-                Simulations
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="chat" className="flex-1 flex flex-col space-y-4">
-              <Card className="flex-1 bg-gray-900 border-gray-800 overflow-hidden flex flex-col">
-                <CardContent className="p-4 flex-1 overflow-y-auto">
-                  <ChatMessages messages={chatState.messages} />
-                  <div ref={messagesEndRef} />
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-900 border-gray-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      placeholder="Ask a scientific question..."
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="flex-1 bg-gray-800 border-gray-700 text-white"
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={chatState.isLoading || !input.trim()}
-                      className="bg-gray-800 hover:bg-gray-700"
-                    >
-                      {chatState.isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="mt-2">
-                    <ModeSelector
-                      selectedMode={chatState.interactionMode}
-                      onModeChange={setInteractionMode}
-                      disabled={chatState.isLoading}
-                    />
-                  </div>
-
-                  {simulationType && simulationType !== "unknown" && (
-                    <div className="mt-2 p-2 bg-gray-800 rounded-md text-xs text-gray-400">
-                      <SimulationDetector type={simulationType} query={input} />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="simulation" className="flex-1 flex flex-col space-y-4">
-              <Card className="bg-gray-900 border-gray-800">
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Simulation Type</label>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant={simulationMode === "quantum" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSimulationMode("quantum")}
-                          className={simulationMode === "quantum" ? "bg-gray-700" : "bg-gray-800 border-gray-700"}
-                        >
-                          <Atom className="h-4 w-4 mr-1" />
-                          Quantum
-                        </Button>
-                        <Button
-                          variant={simulationMode === "physics" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSimulationMode("physics")}
-                          className={simulationMode === "physics" ? "bg-gray-700" : "bg-gray-800 border-gray-700"}
-                        >
-                          <FlaskConical className="h-4 w-4 mr-1" />
-                          Physics
-                        </Button>
-                        <Button
-                          variant={simulationMode === "math" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSimulationMode("math")}
-                          className={simulationMode === "math" ? "bg-gray-700" : "bg-gray-800 border-gray-700"}
-                        >
-                          <Beaker className="h-4 w-4 mr-1" />
-                          Math
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-1">Simulation Preset</label>
-                      <PresetSelector
-                        presets={quantumPresets}
-                        selectedPreset={selectedPreset}
-                        onSelectPreset={setSelectedPreset}
+      <main className="flex-1 bg-gray-50">
+        <section className="container py-8 md:py-12">
+          <div className="mx-auto max-w-4xl">
+            <Card className="mb-8 bg-white shadow-sm">
+              <CardContent className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="query" className="text-sm font-medium text-gray-700">
+                      Research Query
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="query"
+                        placeholder="Enter your scientific query..."
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        className="flex-1"
                       />
+                      <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+                        <Search className="h-4 w-4 mr-2" />
+                        Research
+                      </Button>
                     </div>
+                    <p className="text-xs text-gray-500">
+                      Ask complex scientific questions to generate research-paper style responses
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                </form>
+              </CardContent>
+            </Card>
 
-              <Card className="flex-1 bg-gray-900 border-gray-800 overflow-hidden flex flex-col">
-                <CardContent className="p-4 flex-1 overflow-y-auto">
-                  {simulationMode === "quantum" && (
-                    <div className="space-y-4">
-                      <AdvancedQuantumParameters onChange={setAdvancedParams} preset={selectedPreset} />
-
-                      <div className="border border-gray-800 rounded-md p-4 bg-gray-800/50">
-                        <h3 className="text-lg font-medium mb-2">Circuit Preview</h3>
-                        <QuantumCircuitVisualization preset={selectedPreset} parameters={advancedParams} />
-                      </div>
-                    </div>
-                  )}
-
-                  {simulationResult && (
-                    <div className="mt-4 border border-gray-800 rounded-md p-4 bg-gray-800/50">
-                      <h3 className="text-lg font-medium mb-2">Simulation Results</h3>
-                      <VisualizationRenderer data={simulationResult} type={simulationMode} />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gray-900 border-gray-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      placeholder={`Enter ${simulationMode} simulation prompt...`}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="flex-1 bg-gray-800 border-gray-700 text-white"
-                    />
-                    <Button
-                      onClick={runSimulation}
-                      disabled={isRunningSimulation || !input.trim()}
-                      className="bg-gray-700 hover:bg-gray-600"
-                    >
-                      {isRunningSimulation ? <Loader2 className="h-4 w-4 animate-spin" /> : "Run Simulation"}
+            {isLoading ? (
+              <div className="bg-white p-8 shadow-sm rounded-lg">
+                <div className="mb-6">
+                  <Skeleton className="h-8 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-full" />
+                  <div className="py-2">
+                    <Skeleton className="h-32 w-full" />
+                  </div>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 p-8 shadow-sm rounded-lg border border-red-200">
+                <h2 className="text-xl font-bold text-red-700 mb-4">Error Processing Query</h2>
+                <p className="text-red-600">{error}</p>
+                <Button
+                  onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+                  variant="outline"
+                  className="mt-4 border-red-300 text-red-700 hover:bg-red-100"
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : result ? (
+              <div className="bg-white p-8 shadow-sm rounded-lg">
+                <div className="mb-8 border-b pb-6">
+                  <h1 className="text-2xl font-bold mb-2">{paperTitle}</h1>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500">
+                      Synaptiq Research •{" "}
+                      {new Date().toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                    <Button variant="outline" size="sm" className="text-gray-600">
+                      <FileText className="h-4 w-4 mr-2" />
+                      <Download className="h-4 w-4" />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                </div>
+
+                {/* Debug output */}
+                {response && (
+                  <pre className="text-red-400 text-xs bg-black p-4 mb-4 overflow-auto max-h-96">
+                    {JSON.stringify(response, null, 2)}
+                  </pre>
+                )}
+
+                <ScientificResult content={result} />
+              </div>
+            ) : null}
+          </div>
+        </section>
       </main>
+      <SiteFooter />
     </div>
   )
 }

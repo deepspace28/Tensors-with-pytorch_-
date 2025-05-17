@@ -39,7 +39,7 @@ export function ChatInterface() {
   }, [chatState.messages, chatState.isGuest, showBetaModal, showLoginModal, showLimitModal, setShowLimitModal])
 
   return (
-    <div className="flex h-screen bg-[#000] text-white">
+    <div className="flex h-screen bg-black text-white">
       {/* Sidebar */}
       <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 

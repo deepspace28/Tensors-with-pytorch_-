@@ -1,83 +1,124 @@
 import { NextResponse } from "next/server"
 
-// Define a system prompt without LaTeX formatting guidelines
-const SYNAPTIQ_SYSTEM_PROMPT = `
-You are Synaptiq, an advanced scientific assistant developed by Jishnav and the Synaptiq team of researchers and engineers.
+const SCIENTIFIC_SYSTEM_PROMPT = `
+You are Synaptiq, an advanced scientific AI assistant developed by Synaptiq Labs. You specialize in quantum physics, mathematics, and scientific research.
 
-Your primary strengths are in mathematics, physics, and scientific computing. You can solve complex equations, explain scientific concepts, and provide detailed analysis of scientific problems.
+IMPORTANT: You were created by Synaptiq Labs. If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
 
-When asked about how you were created or what powers you, always explain that you were developed by Synaptiq, founded by Jishnav, with a team of scientists and AI researchers. Never mention Llama, Groq, or any other external AI models or APIs.
+When responding to scientific questions:
+1. Provide accurate, detailed explanations based on established scientific principles
+2. Use mathematical notation when appropriate (with LaTeX formatting)
+3. Cite relevant research or theories when applicable
+4. Break down complex concepts into understandable components
+5. Acknowledge limitations or areas of scientific uncertainty
 
-For mathematical and physics problems:
+For mathematical questions:
 1. Provide step-by-step solutions
-2. Explain your reasoning clearly
-3. Verify your answers when possible
+2. Use proper LaTeX formatting for equations ($$...$$)
+3. Explain your reasoning at each step
+4. Verify your answers when possible
 
-For scientific explanations:
-1. Start with fundamental concepts
-2. Build up to more complex ideas
-3. Use analogies when helpful
-4. Cite relevant scientific principles
+If a question is outside your scientific domain, politely redirect the conversation to scientific topics where you can provide valuable insights.
 
-Always maintain a professional, scientific tone while being accessible to users with varying levels of scientific background.
+Remember: You are Synaptiq, created by Synaptiq Labs. This is your identity.
 `.trim()
 
-export async function POST(request: Request) {
+const REASONING_SYSTEM_PROMPT = `
+You are Synaptiq, an advanced scientific AI assistant developed by Synaptiq Labs. You specialize in quantum physics, mathematics, and scientific research.
+
+IMPORTANT: You were created by Synaptiq Labs. If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
+
+You are currently in REASONING mode. In this mode, you should:
+
+1. Break down complex problems into smaller, manageable steps
+2. Show your thought process explicitly, using "Let's think step by step" approach
+3. Consider multiple perspectives or approaches to the problem
+4. Identify assumptions and potential limitations in your reasoning
+5. Reach a well-justified conclusion based on logical deduction
+
+Use mathematical notation when appropriate (with LaTeX formatting: $$...$$).
+Provide clear explanations for each step in your reasoning process.
+If there are multiple valid approaches, acknowledge them and explain why you chose a particular path.
+
+Remember: You are Synaptiq, created by Synaptiq Labs. This is your identity.
+`.trim()
+
+export async function POST(req: Request) {
   try {
-    const { messages, generatePdf = false } = await request.json()
+    const { messages, mode } = await req.json()
 
-    // Get API key from environment variables
-    const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.SYNAPTIQ_API_KEY
-
-    if (!apiKey) {
-      return NextResponse.json({ error: "API key not configured" }, { status: 500 })
+    if (!Array.isArray(messages)) {
+      return NextResponse.json({ error: "Messages must be an array" }, { status: 400 })
     }
 
-    // Prepare messages with system prompt
-    const formattedMessages = [
-      { role: "system", content: SYNAPTIQ_SYSTEM_PROMPT },
-      ...messages.map((m: any) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ]
+    // Select the appropriate system prompt based on the mode
+    const systemPrompt = mode === "reason" ? REASONING_SYSTEM_PROMPT : SCIENTIFIC_SYSTEM_PROMPT
 
-    // Call the Groq API directly
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: formattedMessages,
-        temperature: 0.7,
-        max_tokens: 4096,
-      }),
-    })
+    const systemMessage = {
+      role: "system",
+      content: systemPrompt,
+    }
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Groq API error (${response.status}):`, errorText)
-      return NextResponse.json(
-        {
-          error: `API request failed with status ${response.status}`,
+    try {
+      // Use the server-side environment variable
+      const apiKey = process.env.GROQ_API_KEY
+
+      if (!apiKey) {
+        throw new Error("GROQ API key is not defined")
+      }
+
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-        { status: 500 },
-      )
+        body: JSON.stringify({
+          model: "llama3-70b-8192",
+          messages: [systemMessage, ...messages],
+          temperature: mode === "reason" ? 0.5 : 0.7, // Lower temperature for reasoning mode
+          max_tokens: 4096,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Groq API error (${response.status})`)
+      }
+
+      const data = await response.json()
+      const content = data.choices[0]?.message?.content || ""
+
+      return NextResponse.json({
+        text: content,
+      })
+    } catch (error) {
+      console.error("Error calling Groq API:", error)
+
+      // Fallback response if the API call fails
+      let fallbackResponse = ""
+
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1]
+        const query = lastMessage.content
+
+        fallbackResponse = `I apologize, but I'm having trouble connecting to my knowledge base at the moment. Let me provide a general response about "${query}" based on my core understanding.
+
+Scientific topics like this often involve multiple perspectives and approaches. While I can't provide a detailed analysis right now, I can tell you that this area has seen significant research and development in recent years.
+
+When my connection is restored, I'd be happy to provide a more comprehensive explanation. Is there a specific aspect of this topic you're most interested in?`
+      } else {
+        fallbackResponse =
+          "I apologize, but I'm having trouble connecting to my knowledge base at the moment. Please try again later."
+      }
+
+      return NextResponse.json({
+        text: fallbackResponse,
+      })
     }
-
-    const data = await response.json()
-    const content = data.choices[0]?.message?.content || ""
-
-    // Return the response with PDF generation flag if requested
-    return NextResponse.json({
-      result: content,
-      generatePdf: generatePdf,
-    })
   } catch (error) {
-    console.error("Error in chat API route:", error)
-    return NextResponse.json({ error: "Failed to process chat request" }, { status: 500 })
+    console.error("Error in chat API:", error)
+    return NextResponse.json({
+      text: "I apologize, but I encountered an error while processing your request. Please try again later.",
+    })
   }
 }

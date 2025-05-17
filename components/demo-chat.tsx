@@ -322,10 +322,10 @@ export function DemoChat() {
   }
 
   return (
-    <Card className="border border-gray-200 shadow-lg">
+    <Card className="border border-primary/10 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-gray-500 animate-pulse"></span>
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
           Synaptiq Demo
         </CardTitle>
       </CardHeader>
@@ -343,10 +343,10 @@ export function DemoChat() {
                 <div
                   className={`rounded-lg px-4 py-2 max-w-[80%] ${
                     message.role === "user"
-                      ? "bg-gray-800 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : message.isError
-                        ? "bg-gray-100 border border-red-200"
-                        : "bg-gray-700 text-white"
+                        ? "bg-destructive/10 border border-destructive/20"
+                        : "bg-muted"
                   }`}
                 >
                   {message.role === "user" ? (
@@ -359,15 +359,15 @@ export function DemoChat() {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="rounded-lg px-4 py-2 max-w-[80%] bg-gray-700 text-white">
+                <div className="rounded-lg px-4 py-2 max-w-[80%] bg-muted">
                   <div className="flex space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"></div>
+                    <div className="h-2 w-2 rounded-full bg-primary animate-bounce"></div>
                     <div
-                      className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"
+                      className="h-2 w-2 rounded-full bg-primary animate-bounce"
                       style={{ animationDelay: "0.2s" }}
                     ></div>
                     <div
-                      className="h-2 w-2 rounded-full bg-gray-500 animate-bounce"
+                      className="h-2 w-2 rounded-full bg-primary animate-bounce"
                       style={{ animationDelay: "0.4s" }}
                     ></div>
                   </div>
@@ -398,7 +398,9 @@ export function DemoChat() {
                   <Lightbulb className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Show complex equations</TooltipContent>
+              <TooltipContent>
+                <p>Show complex LaTeX equations</p>
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

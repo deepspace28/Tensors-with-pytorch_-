@@ -3,28 +3,25 @@ import { ScientificLogo } from "@/components/scientific-logo"
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border py-6 md:py-0">
-      <div className="container flex flex-col items-start justify-between gap-4 md:h-24 md:flex-row md:items-center">
-        <div className="flex flex-col items-start gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-          <Link href="/" className="flex items-center space-x-2">
-            <ScientificLogo variant="simple" className="h-5 w-5 text-primary" />
-            <span className="font-bold">Synaptiq</span>
-          </Link>
-          <p className="text-sm text-muted-foreground md:text-center">
-            &copy; {new Date().getFullYear()} Synaptiq. All rights reserved.
+    <footer className="border-t border-[#2a2a2a] bg-[#0f0f0f] text-white">
+      <div className="container flex flex-col items-center justify-between gap-4 py-4 md:flex-row">
+        <div className="flex flex-col items-center gap-4 md:flex-row md:gap-6">
+          <ScientificLogo className="h-6 w-6 text-white" />
+          <p className="text-center text-sm leading-loose text-gray-400 md:text-left">
+            &copy; {new Date().getFullYear()} Synaptiq Labs. All rights reserved.
           </p>
         </div>
-        <div className="flex flex-wrap gap-4 px-8 md:gap-2 md:px-0">
-          <Link href="/terms" className="text-sm text-muted-foreground hover:underline">
+        <div className="flex gap-4">
+          <Link href="/terms" className="text-sm text-gray-400 hover:text-white">
             Terms
           </Link>
-          <Link href="/privacy" className="text-sm text-muted-foreground hover:underline">
+          <Link href="/privacy" className="text-sm text-gray-400 hover:text-white">
             Privacy
           </Link>
-          <Link href="/cookies" className="text-sm text-muted-foreground hover:underline">
+          <Link href="/cookies" className="text-sm text-gray-400 hover:text-white">
             Cookies
           </Link>
-          <Link href="/contact" className="text-sm text-muted-foreground hover:underline">
+          <Link href="/contact" className="text-sm text-gray-400 hover:text-white">
             Contact
           </Link>
         </div>

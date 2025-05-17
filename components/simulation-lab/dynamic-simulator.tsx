@@ -1,203 +1,199 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
+import { Card, CardContent } from "@/components/ui/card"
+import { DynamicOutput } from "./dynamic-output"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Download, Loader2 } from "lucide-react"
-
-interface Parameter {
-  name: string
-  label: string
-  default: number
-  min: number
-  max: number
-  unit: string
-}
-
-interface SimulationData {
-  title: string
-  equations: string[]
-  parameters: Parameter[]
-  chartType: "line" | "scatter" | "3D"
-  explanation: string
-  formula?: string
-  dataset?: any[]
-}
+import { AlertCircle, Loader2 } from "lucide-react"
 
 interface DynamicSimulatorProps {
-  simulation?: SimulationData | null
-  isLoading?: boolean
+  prompt: string
+  simulationType?: string
 }
 
-export function DynamicSimulator({ simulation, isLoading = false }: DynamicSimulatorProps) {
-  const [parameters, setParameters] = useState<Record<string, number>>({})
-  const [chartData, setChartData] = useState<any>(null)
+export function DynamicSimulator({ prompt, simulationType = "unified" }: DynamicSimulatorProps) {
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [simulationData, setSimulationData] = useState<any>(null)
+  const [results, setResults] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [steps, setSteps] = useState<string[]>([])
 
-  // Initialize parameters with default values
   useEffect(() => {
-    if (simulation?.parameters) {
-      const initialParams: Record<string, number> = {}
-      simulation.parameters.forEach((param) => {
-        initialParams[param.name] = param.default
-      })
-      setParameters(initialParams)
+    async function runSimulation() {
+      if (!prompt) return
+
+      console.log(`Running simulation with prompt: "${prompt}"`)
+      setIsProcessing(true)
+      setError(null)
+      setSteps([])
+
+      try {
+        // Call the API to get simulation data
+        const response = await fetch("/api/simulate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt,
+            type: simulationType,
+            parameters: {},
+            code: "", // Add the required 'code' field
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `API request failed with status ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Received simulation data:", data)
+
+        // Handle simulation data
+        if (data.simulationData) {
+          setSimulationData(data.simulationData)
+        } else {
+          // Fallback if the API doesn't return the expected structure
+          setSimulationData({
+            title: "Simulation Results",
+            explanation: "Results based on your simulation prompt.",
+            chartType: "line",
+            equations: [],
+          })
+        }
+
+        // Handle results
+        if (data.results) {
+          setResults(data.results)
+        } else {
+          // Fallback if no results are returned
+          setResults({
+            x: Array.from({ length: 100 }, (_, i) => i / 10),
+            y: Array.from({ length: 100 }, (_, i) => Math.sin(i / 10)),
+          })
+        }
+
+        // Handle step-by-step math solutions if available
+        if (data.steps && Array.isArray(data.steps)) {
+          setSteps(data.steps)
+        }
+
+        // Handle any errors from the backend
+        if (data.error) {
+          setError(`Backend error: ${data.error}`)
+        }
+      } catch (err) {
+        console.error("Error running simulation:", err)
+        setError(`Failed to run simulation: ${err instanceof Error ? err.message : String(err)}`)
+      } finally {
+        setIsProcessing(false)
+      }
     }
-  }, [simulation])
 
-  // Update chart data when parameters change
-  useEffect(() => {
-    if (!simulation || Object.keys(parameters).length === 0) return
+    runSimulation()
+  }, [prompt, simulationType])
 
-    // This is a simplified example - in a real implementation,
-    // you would use the formula or dataset from the simulation
-    // to generate the chart data based on the parameters
-    const newChartData = generateChartData(simulation, parameters)
-    setChartData(newChartData)
-  }, [parameters, simulation])
+  const retrySimulation = () => {
+    // Reset states
+    setError(null)
+    setSimulationData(null)
+    setResults(null)
+    setSteps([])
 
-  const handleParameterChange = (name: string, value: number[]) => {
-    setParameters((prev) => ({
-      ...prev,
-      [name]: value[0],
-    }))
+    // Re-run the simulation
+    if (prompt) {
+      setIsProcessing(true)
+      fetch("/api/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          type: simulationType,
+          parameters: {},
+          code: "", // Add the required 'code' field
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`)
+          }
+          return response.json()
+        })
+        .then((data) => {
+          setSimulationData(
+            data.simulationData || {
+              title: "Simulation Results",
+              explanation: "Results based on your simulation prompt.",
+              chartType: "line",
+              equations: [],
+            },
+          )
+          setResults(
+            data.results || {
+              x: Array.from({ length: 100 }, (_, i) => i / 10),
+              y: Array.from({ length: 100 }, (_, i) => Math.sin(i / 10)),
+            },
+          )
+          if (data.steps && Array.isArray(data.steps)) {
+            setSteps(data.steps)
+          }
+        })
+        .catch((err) => {
+          console.error("Error retrying simulation:", err)
+          setError(`Failed to run simulation: ${err.message}`)
+        })
+        .finally(() => {
+          setIsProcessing(false)
+        })
+    }
   }
 
-  if (isLoading) {
+  if (error) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Loading Simulation...</CardTitle>
-          <CardDescription>Please wait while we generate your simulation</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Card className="bg-[#0a0a0a] border-gray-900">
+        <CardContent className="p-6">
+          <div className="text-red-400 p-4 rounded-md bg-[#1a0a0a] border border-red-900 mb-4">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5" />
+              <div>
+                <p className="font-medium mb-2">Error</p>
+                <p className="text-sm">{error}</p>
+              </div>
+            </div>
+          </div>
+          <Button
+            onClick={retrySimulation}
+            variant="outline"
+            className="bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 border-gray-800"
+          >
+            Retry Simulation
+          </Button>
         </CardContent>
       </Card>
     )
   }
 
-  if (!simulation) {
+  if (isProcessing) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>No Simulation Data</CardTitle>
-          <CardDescription>Please try a different prompt or refresh the page</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            We couldn't generate a simulation for your request. Please try a more specific scientific prompt.
-          </p>
+      <Card className="bg-[#0a0a0a] border-gray-900">
+        <CardContent className="p-6">
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <p className="mt-4 text-gray-400">Processing simulation...</p>
+          </div>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>{simulation.title}</CardTitle>
-        <CardDescription>Interactive scientific simulation</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Parameters</h3>
-              {simulation.parameters && simulation.parameters.length > 0 ? (
-                simulation.parameters.map((param) => (
-                  <div key={param.name} className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor={param.name}>{param.label}</Label>
-                      <span className="text-sm text-muted-foreground">
-                        {parameters[param.name] || param.default} {param.unit}
-                      </span>
-                    </div>
-                    <Slider
-                      id={param.name}
-                      min={param.min}
-                      max={param.max}
-                      step={(param.max - param.min) / 100}
-                      value={[parameters[param.name] || param.default]}
-                      onValueChange={(value) => handleParameterChange(param.name, value)}
-                    />
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground">No parameters available for this simulation.</p>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Governing Equations</h3>
-              <div className="p-4 bg-black/10 dark:bg-white/5 rounded-md overflow-x-auto">
-                {simulation.equations && simulation.equations.length > 0 ? (
-                  simulation.equations.map((eq, index) => (
-                    <div key={index} className="my-2 text-center katex-display">
-                      {/* Render LaTeX equation here - in a real implementation, use KaTeX or MathJax */}
-                      <div dangerouslySetInnerHTML={{ __html: `$$${eq}$$` }} />
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground">No equations available for this simulation.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Explanation</h3>
-              <p className="text-sm text-muted-foreground">{simulation.explanation || "No explanation available."}</p>
-            </div>
-
-            <div>
-              <Button>
-                <Download className="mr-2 h-4 w-4" />
-                Download Report (Demo)
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Note: PDF generation is available in the full lab experience.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Visualization</h3>
-            <div className="aspect-square w-full bg-black/10 dark:bg-white/5 rounded-md flex items-center justify-center">
-              {chartData ? (
-                <div className="w-full h-full">
-                  {/* In a real implementation, render Chart.js or Three.js visualization here */}
-                  <div className="w-full h-full flex items-center justify-center">
-                    <p className="text-center text-muted-foreground">
-                      [Visualization would render here based on chart type: {simulation.chartType}]
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground">Loading visualization...</p>
-              )}
-            </div>
-          </div>
-        </div>
+    <Card className="bg-[#0a0a0a] border-gray-900">
+      <CardContent className="p-0">
+        <DynamicOutput simulationData={simulationData} results={results} steps={steps} />
       </CardContent>
     </Card>
   )
-}
-
-// Helper function to generate chart data based on parameters
-function generateChartData(simulation: SimulationData, parameters: Record<string, number>) {
-  // This is a placeholder - in a real implementation, you would use the
-  // formula or dataset from the simulation to generate the chart data
-  return {
-    type: simulation.chartType,
-    data: {
-      labels: ["Sample Data"],
-      datasets: [
-        {
-          label: "Sample Dataset",
-          data: [parameters[Object.keys(parameters)[0]] || 0],
-        },
-      ],
-    },
-  }
 }

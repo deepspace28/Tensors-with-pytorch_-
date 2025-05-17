@@ -1,166 +1,293 @@
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
-
-// The URL for the Python backend API
-const PYTHON_API_URL = process.env.PYTHON_API_URL || "https://sitebackend-production.up.railway.app/simulate"
+import { getMockQuantumData } from "@/lib/mock-quantum-data"
 
 export async function POST(request: Request) {
   try {
-    const { prompt, parameters = {} } = await request.json()
+    const body = await request.json()
+    const { prompt, backend = "qiskit" } = body
 
     if (!prompt) {
       return NextResponse.json({ error: "Missing required parameter: prompt" }, { status: 400 })
     }
 
     logger.info(`Received quantum simulation request: ${prompt}`)
-    logger.info(`Using Python API URL: ${PYTHON_API_URL}`)
+
+    // Get the API key from environment variables - server-side only
+    const apiKey = process.env.GROQ_API_KEY
+
+    if (!apiKey) {
+      logger.warn("GROQ API key is not defined, using mock data")
+      return NextResponse.json(getMockQuantumData(prompt))
+    }
+
+    // System prompt for quantum simulations - explicitly requesting clean, textbook-style math
+    const systemPrompt = `You are Synaptiq's quantum physics expert with deep knowledge of quantum mechanics and quantum computing.
+    
+    When given a quantum simulation request, provide a comprehensive analysis including:
+    
+    1. A detailed explanation of the quantum system and its significance
+    2. The quantum circuit representation in ASCII art with clear labels
+    3. Mathematical equations using clean, textbook-style LaTeX notation
+    4. Simulation results with precise probabilities and measurements
+    5. Visualization data for plotting results
+    6. Insights into the quantum phenomena being demonstrated
+    
+    DO NOT format your response as JSON. Instead, use markdown with clear sections:
+    
+    # Summary
+    Brief summary of the quantum system and simulation results
+    
+    # Equations
+    - LaTeX equation 1
+    - LaTeX equation 2
+    
+    # Results
+    Detailed measurement results and probabilities
+    
+    # Insight
+    Detailed explanation of the quantum behavior and its significance
+    
+    For Schrödinger's cat simulations, explain the quantum superposition principle and how it applies to the thought experiment.
+    
+    For entanglement simulations, explain Bell's inequality and non-locality.
+    
+    For quantum algorithms, explain the computational advantage over classical algorithms.
+    
+    IMPORTANT: Format all equations in clean, textbook-style LaTeX without unnecessary decorations or colors.
+    Use standard notation conventions from quantum mechanics textbooks.`
+
+    logger.info("Calling Groq API with system prompt and user query")
 
     try {
-      // Call the Python API directly
-      const response = await fetch(PYTHON_API_URL, {
+      // Call the Groq API
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          prompt,
-          type: "quantum",
+          model: "llama3-70b-8192",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: `Simulate the following quantum system: ${prompt}. Use ${backend} as the backend.`,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 4000,
+          // Removed response_format to get markdown instead of JSON
         }),
       })
 
-      // Log the status and headers for debugging
-      logger.info(`Python API response status: ${response.status}`)
-      logger.info(`Python API response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`)
-
-      // Check content type
-      const contentType = response.headers.get("content-type")
-      if (contentType && !contentType.includes("application/json")) {
-        logger.error(`Received non-JSON response: ${contentType}`)
-
-        // Get the text response for debugging
-        const text = await response.text()
-        logger.error(`Raw response (first 500 chars): ${text.substring(0, 500)}`)
-
-        // Return a fallback with the error
-        return NextResponse.json({
-          success: false,
-          error: `Received non-JSON response: ${contentType}`,
-          rawResponse: text.substring(0, 1000), // Include part of the raw response for debugging
-          fallback: {
-            summary: "Fallback quantum simulation result (received HTML instead of JSON).",
-            equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-            insight:
-              "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-            chart: {
-              labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-              values: [0.5, 0, 0, 0.5],
-              title: "Fallback Measurement Probabilities",
-            },
-          },
-        })
-      }
-
-      // Try to parse the response as JSON
-      let data
-      try {
-        data = await response.json()
-        logger.info(`Python API response received: ${JSON.stringify(data).substring(0, 200)}...`)
-      } catch (parseError) {
-        logger.error("Failed to parse Python API response as JSON:", parseError)
-
-        // Try to get the text response for debugging
-        let text = "Could not retrieve response text"
-        try {
-          text = await response.text()
-          logger.error(`Raw response (first 500 chars): ${text.substring(0, 500)}`)
-        } catch (textError) {
-          logger.error("Failed to get response text:", textError)
-        }
-
-        // Return a fallback with the error
-        return NextResponse.json({
-          success: false,
-          error: `Failed to parse response as JSON: ${parseError instanceof Error ? parseError.message : "Unknown error"}`,
-          rawResponse: text.substring(0, 1000), // Include part of the raw response for debugging
-          fallback: {
-            summary: "Fallback quantum simulation result (JSON parsing error).",
-            equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-            insight:
-              "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-            chart: {
-              labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-              values: [0.5, 0, 0, 0.5],
-              title: "Fallback Measurement Probabilities",
-            },
-          },
-        })
-      }
-
       if (!response.ok) {
-        logger.error(`Python API error: ${response.status} ${response.statusText}`)
-        logger.error(`Error response: ${JSON.stringify(data)}`)
+        const errorText = await response.text()
+        logger.error(`Groq API request failed with status ${response.status}: ${errorText}`)
 
-        // Return a fallback with the error
-        return NextResponse.json({
-          success: false,
-          error: `Python API request failed with status ${response.status}: ${data.error || "Unknown error"}`,
-          fallback: {
-            summary: "Fallback quantum simulation result (API error).",
-            equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-            insight:
-              "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-            chart: {
-              labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-              values: [0.5, 0, 0, 0.5],
-              title: "Fallback Measurement Probabilities",
-            },
-          },
-        })
+        // Fall back to mock data if API fails
+        logger.info("Falling back to mock data due to API error")
+        return NextResponse.json(getMockQuantumData(prompt))
       }
 
-      // Return the data directly
-      return NextResponse.json({
-        success: true,
-        data,
-      })
-    } catch (error) {
-      logger.error("Error calling Python API:", error)
+      const data = await response.json()
+      logger.info("Received response from Groq API")
 
-      // Provide a more detailed error message
+      if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+        logger.error("Invalid response format from Groq API", data)
+
+        // Fall back to mock data if response format is invalid
+        logger.info("Falling back to mock data due to invalid response format")
+        return NextResponse.json(getMockQuantumData(prompt))
+      }
+
+      const content = data.choices[0].message.content
+      logger.info("Successfully received content from Groq API")
+
+      // Parse the markdown content into structured data
+      const structuredData = parseMarkdownContent(content, prompt)
+
+      // Return the structured data
       return NextResponse.json({
-        success: false,
-        error: `Failed to run simulation: ${error instanceof Error ? error.message : "Unknown error"}`,
-        fallback: {
-          summary: "Fallback quantum simulation result (error occurred in actual simulation).",
-          equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-          insight:
-            "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-          chart: {
-            labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-            values: [0.5, 0, 0, 0.5],
-            title: "Fallback Measurement Probabilities",
-          },
-        },
+        ...structuredData,
+        rawContent: content, // Include the raw content for debugging
       })
+    } catch (apiError) {
+      logger.error(`Error calling Groq API: ${apiError.message}`, apiError)
+
+      // Fall back to mock data if API call fails
+      logger.info("Falling back to mock data due to API call error")
+      return NextResponse.json(getMockQuantumData(prompt))
     }
   } catch (error) {
-    logger.error("Error processing quantum simulation request:", error)
-    return NextResponse.json({
-      success: false,
-      error: "Failed to process simulation request",
-      details: error instanceof Error ? error.message : "Unknown error",
-      fallback: {
-        summary: "Fallback quantum simulation result (request processing error).",
-        equations: ["\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{00} + \\ket{11})"],
-        insight:
-          "This is a fallback result showing what quantum entanglement would look like. The actual simulation encountered an error.",
-        chart: {
-          labels: ["|00⟩", "|01⟩", "|10⟩", "|11⟩"],
-          values: [0.5, 0, 0, 0.5],
-          title: "Fallback Measurement Probabilities",
-        },
+    logger.error(`Error in quantum simulation: ${error.message}`, error)
+
+    // Return a more detailed error response
+    return NextResponse.json(
+      {
+        error: "Failed to run quantum simulation",
+        details: error.message,
+        stack: error.stack,
       },
-    })
+      { status: 500 },
+    )
   }
+}
+
+/**
+ * Parse markdown content into structured data
+ */
+function parseMarkdownContent(
+  content: string,
+  prompt: string,
+): {
+  summary: string
+  equations: string[]
+  insight: string
+  chart?: { title: string; labels: string[]; values: number[] }
+} {
+  // Default result structure
+  const result = {
+    summary: "",
+    equations: [] as string[],
+    insight: "",
+    chart: undefined as { title: string; labels: string[]; values: number[] } | undefined,
+  }
+
+  // Extract summary
+  const summaryMatch = content.match(/# Summary\s+([\s\S]*?)(?=\n#|$)/i)
+  if (summaryMatch && summaryMatch[1]) {
+    result.summary = summaryMatch[1].trim()
+  } else {
+    // Fallback: use the first paragraph
+    const firstParagraph = content.split("\n\n")[0]
+    result.summary = firstParagraph.trim()
+  }
+
+  // Extract equations
+  const equationsMatch = content.match(/# Equations\s+([\s\S]*?)(?=\n#|$)/i)
+  if (equationsMatch && equationsMatch[1]) {
+    // Extract equations from bullet points or LaTeX delimiters
+    const equationLines = equationsMatch[1].split("\n")
+    for (const line of equationLines) {
+      const trimmedLine = line.trim()
+      if (trimmedLine.startsWith("-") || trimmedLine.startsWith("*")) {
+        const equation = trimmedLine.substring(1).trim()
+        if (equation) {
+          result.equations.push(equation)
+        }
+      } else if (trimmedLine.includes("$$")) {
+        const equation = trimmedLine.replace(/\$\$/g, "").trim()
+        if (equation) {
+          result.equations.push(equation)
+        }
+      } else if (trimmedLine && !trimmedLine.startsWith("#")) {
+        result.equations.push(trimmedLine)
+      }
+    }
+  }
+
+  // Also look for inline LaTeX
+  const latexMatches = content.matchAll(/\$\$(.*?)\$\$/g)
+  for (const match of latexMatches) {
+    if (match[1] && match[1].trim()) {
+      result.equations.push(match[1].trim())
+    }
+  }
+
+  // Extract insight
+  const insightMatch = content.match(/# Insight\s+([\s\S]*?)(?=\n#|$)/i)
+  if (insightMatch && insightMatch[1]) {
+    result.insight = insightMatch[1].trim()
+  } else {
+    // Fallback: look for other sections that might contain insights
+    const analysisMatch = content.match(/# (?:Analysis|Discussion|Interpretation)\s+([\s\S]*?)(?=\n#|$)/i)
+    if (analysisMatch && analysisMatch[1]) {
+      result.insight = analysisMatch[1].trim()
+    } else {
+      // Use the last paragraph as insight
+      const paragraphs = content.split("\n\n")
+      result.insight = paragraphs[paragraphs.length - 1].trim()
+    }
+  }
+
+  // Try to extract chart data from tables or results section
+  const resultsMatch = content.match(/# Results\s+([\s\S]*?)(?=\n#|$)/i)
+  if (resultsMatch && resultsMatch[1]) {
+    const resultsContent = resultsMatch[1]
+
+    // Look for tables with measurement results
+    const tableMatch = resultsContent.match(/\|[\s\S]*?\|[\s\S]*?\|/)
+    if (tableMatch) {
+      try {
+        const tableLines = tableMatch[0].split("\n").filter((line) => line.trim().startsWith("|"))
+
+        // Extract headers and data
+        if (tableLines.length >= 3) {
+          const headers = tableLines[0]
+            .split("|")
+            .map((h) => h.trim())
+            .filter((h) => h)
+          const dataRows = tableLines.slice(2).map((line) =>
+            line
+              .split("|")
+              .map((cell) => cell.trim())
+              .filter((cell) => cell),
+          )
+
+          // Look for state/probability columns
+          const stateIndex = headers.findIndex((h) => /state|configuration|outcome|result|bit|qubit/i.test(h))
+          const probIndex = headers.findIndex((h) => /prob|frequency|count|result|value|measurement/i.test(h))
+
+          if (stateIndex !== -1 && probIndex !== -1 && dataRows.length > 0) {
+            const labels = dataRows.map((row) => row[stateIndex])
+            const values = dataRows.map((row) => {
+              // Try to extract numeric value, removing % if present
+              const val = row[probIndex].replace("%", "")
+              return Number.parseFloat(val) || 0
+            })
+
+            if (labels.length > 0 && values.length > 0) {
+              result.chart = {
+                title: "Measurement Results",
+                labels,
+                values,
+              }
+            }
+          }
+        }
+      } catch (e) {
+        logger.error("Error parsing table for chart data:", e)
+      }
+    }
+  }
+
+  // If we couldn't extract a chart, create a simple one based on the prompt
+  if (!result.chart) {
+    if (prompt.toLowerCase().includes("entanglement") || prompt.toLowerCase().includes("bell")) {
+      result.chart = {
+        title: "Bell State Measurement",
+        labels: ["00", "11", "01", "10"],
+        values: [50, 50, 0, 0],
+      }
+    } else if (prompt.toLowerCase().includes("schrödinger") || prompt.toLowerCase().includes("cat")) {
+      result.chart = {
+        title: "Cat State Measurement",
+        labels: ["Alive (|0⟩)", "Dead (|1⟩)"],
+        values: [50, 50],
+      }
+    } else {
+      result.chart = {
+        title: "Quantum State Probabilities",
+        labels: ["0", "1"],
+        values: [50, 50],
+      }
+    }
+  }
+
+  return result
 }

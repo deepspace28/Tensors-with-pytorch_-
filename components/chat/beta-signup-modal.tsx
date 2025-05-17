@@ -7,6 +7,8 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScientificLogo } from "@/components/scientific-logo"
 import { X } from "lucide-react"
 
@@ -18,6 +20,9 @@ export function BetaSignupModal({ onClose }: BetaSignupModalProps) {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [institution, setInstitution] = useState("")
+  const [role, setRole] = useState("")
+  const [researchArea, setResearchArea] = useState("")
+  const [interests, setInterests] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
@@ -37,12 +42,12 @@ export function BetaSignupModal({ onClose }: BetaSignupModalProps) {
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-card border rounded-lg shadow-lg max-w-md w-full p-6"
+        className="bg-card border rounded-lg shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ScientificLogo className="h-6 w-6 text-primary" />
-            <h2 className="text-xl font-bold">Beta Access Request</h2>
+            <h2 className="text-xl font-bold">Join the Synaptiq Beta</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -74,7 +79,7 @@ export function BetaSignupModal({ onClose }: BetaSignupModalProps) {
               Thank you for your interest in Synaptiq! We'll review your request and be in touch soon.
             </p>
             <Button className="mt-4" onClick={onClose}>
-              Return to Chat
+              Close
             </Button>
           </div>
         ) : (
@@ -109,10 +114,60 @@ export function BetaSignupModal({ onClose }: BetaSignupModalProps) {
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
                 placeholder="University of Science"
+                required
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={role} onValueChange={setRole} required>
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="professor">Professor</SelectItem>
+                  <SelectItem value="researcher">Researcher</SelectItem>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="industry">Industry Professional</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="researchArea">Primary Research Area</Label>
+              <Select value={researchArea} onValueChange={setResearchArea} required>
+                <SelectTrigger id="researchArea">
+                  <SelectValue placeholder="Select your research area" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quantum">Quantum Physics</SelectItem>
+                  <SelectItem value="mathematics">Mathematics</SelectItem>
+                  <SelectItem value="biology">Biology</SelectItem>
+                  <SelectItem value="chemistry">Chemistry</SelectItem>
+                  <SelectItem value="computerScience">Computer Science</SelectItem>
+                  <SelectItem value="engineering">Engineering</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="interests">How do you plan to use Synaptiq?</Label>
+              <Textarea
+                id="interests"
+                value={interests}
+                onChange={(e) => setInterests(e.target.value)}
+                placeholder="Please describe your research interests and how you plan to use Synaptiq..."
+                rows={3}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Submitting..." : "Request Beta Access"}
             </Button>
           </form>

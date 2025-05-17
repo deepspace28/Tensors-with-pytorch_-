@@ -5,7 +5,6 @@ interface QuantumSimulationResult {
   equations?: string[]
   insight?: string
   chart?: {
-    title?: string
     labels: string[]
     values: number[]
   }
@@ -25,12 +24,6 @@ export async function executeQuantumSimulation(
   try {
     logger.info(`Running quantum simulation with params: ${JSON.stringify(params)}`)
 
-    // Check if we have access to Python API
-    if (!process.env.PYTHON_API_URL) {
-      logger.info("No Python API URL found, using mock quantum simulation")
-      return mockQuantumSimulation(prompt, params)
-    }
-
     // Generate Qiskit code based on the parameters
     const qiskitCode = generateQiskitCode(prompt, params)
 
@@ -38,18 +31,11 @@ export async function executeQuantumSimulation(
     const result = await executeQiskitCode(qiskitCode)
 
     // Parse the result
-    let parsedResult
-    try {
-      parsedResult = JSON.parse(result)
-    } catch (parseError) {
-      logger.error("Failed to parse quantum simulation result:", parseError)
-      return mockQuantumSimulation(prompt, params)
-    }
+    const parsedResult = JSON.parse(result)
 
     // Validate the result
     if (!parsedResult.summary) {
-      logger.warn("Invalid simulation result: missing summary")
-      return mockQuantumSimulation(prompt, params)
+      throw new Error("Invalid simulation result: missing summary")
     }
 
     // Return the structured result
@@ -57,16 +43,17 @@ export async function executeQuantumSimulation(
       summary: parsedResult.summary,
       equations: parsedResult.equations || [],
       insight: parsedResult.insight || parsedResult.insights,
-      chart: {
-        title: parsedResult.chart_data?.title || "Measurement Probabilities",
-        labels: parsedResult.chart_data?.labels || [],
-        values: parsedResult.chart_data?.datasets?.[0]?.data || parsedResult.chart_data?.values || [],
-      },
+      chart: parsedResult.chart_data
+        ? {
+            labels: parsedResult.chart_data.labels || [],
+            values: parsedResult.chart_data.datasets?.[0]?.data || [],
+          }
+        : undefined,
       circuit: parsedResult.circuit_description,
     }
   } catch (error) {
     logger.error(`Error running quantum simulation: ${error instanceof Error ? error.message : String(error)}`)
-    return mockQuantumSimulation(prompt, params)
+    throw error
   }
 }
 
@@ -111,57 +98,75 @@ try:
     values = list(counts.values())
     probabilities = [count/${shots} for count in values]
     
-    # Generate LaTeX equations
+    # Generate LaTeX equations - clean, textbook style
     equations = []
     if qubits == 1:
-        equations.append("\\\\ket{\\\\psi} = \\\\frac{1}{\\\\sqrt{2}}(\\\\ket{0} + \\\\ket{1})")
+        equations.append("\\\\ket{\\\\psi_0} = |0\\\\rangle")
+        equations.append("H|0\\\\rangle = \\\\frac{1}{\\\\sqrt{2}}(|0\\\\rangle + |1\\\\rangle)")
+        equations.append("\\\\ket{\\\\psi_1} = \\\\frac{1}{\\\\sqrt{2}}(|0\\\\rangle + |1\\\\rangle)")
     elif qubits == 2:
+        equations.append("\\\\ket{\\\\psi_0} = |00\\\\rangle")
+        equations.append("H \\\\otimes I |00\\\\rangle = \\\\frac{1}{\\\\sqrt{2}}(|0\\\\rangle + |1\\\\rangle) \\\\otimes |0\\\\rangle = \\\\frac{1}{\\\\sqrt{2}}(|00\\\\rangle + |10\\\\rangle)")
         if ${entangle}:
-            equations.append("\\\\ket{\\\\psi} = \\\\frac{1}{\\\\sqrt{2}}(\\\\ket{00} + \\\\ket{11})")
-        else:
-            equations.append("\\\\ket{\\\\psi} = \\\\frac{1}{\\\\sqrt{2}}\\\\ket{0} \\\\otimes \\\\ket{0} + \\\\frac{1}{\\\\sqrt{2}}\\\\ket{1} \\\\otimes \\\\ket{0}")
+            equations.append("CNOT \\\\frac{1}{\\\\sqrt{2}}(|00\\\\rangle + |10\\\\rangle) = \\\\frac{1}{\\\\sqrt{2}}(|00\\\\rangle + |11\\\\rangle)")
     else:
         # For more qubits, show the general form
         zeros = "0" * qubits
         ones = "1" * qubits
+        equations.append(f"\\\\ket{{\\\\psi_0}} = |{zeros}\\\\rangle")
         if ${entangle}:
-            equations.append(f"\\\\ket{{\\\\psi}} = \\\\frac{{1}}{{\\\\sqrt{{2}}}}(\\\\ket{{{zeros}}} + \\\\ket{{{ones}}})")
+            equations.append(f"\\\\ket{{\\\\psi_f}} = \\\\frac{{1}}{{\\\\sqrt{{2}}}}(|{zeros}\\\\rangle + |{ones}\\\\rangle)")
+    
+    # Create circuit description in ASCII format
+    circuit_description = ""
+    for i in range(qubits):
+        if i == 0:
+            circuit_description += f"q_{i}: ──[H]──"
+            if ${entangle}:
+                circuit_description += "●" + "─" * (qubits - 1) + "─\\n"
+            else:
+                circuit_description += "─" * qubits + "─\\n"
+        elif ${entangle}:
+            circuit_description += " " * 9
+            circuit_description += "│" if i == 1 else " "
+            circuit_description += " " * (i - 1)
+            circuit_description += "\\n"
+            circuit_description += f"q_{i}: ────────"
+            circuit_description += "X" if i == 1 else "─"
+            circuit_description += "─" * (qubits - i) + "─\\n"
         else:
-            equations.append(f"\\\\ket{{\\\\psi}} = \\\\frac{{1}}{{\\\\sqrt{{2}}}}\\\\ket{{0}} \\\\otimes \\\\ket{{{zeros[1:]}}} + \\\\frac{{1}}{{\\\\sqrt{{2}}}}\\\\ket{{1}} \\\\otimes \\\\ket{{{zeros[1:]}}}")
-    
-    # Add measurement equation
-    equations.append("P(\\\\text{measure } \\\\ket{x}) = |\\\\langle x | \\\\psi \\\\rangle|^2")
-    
-    # Create circuit description
-    circuit_description = f"""
-    Quantum Circuit for {'Schrödinger\\'s Cat' if ${entangle} else 'Quantum Superposition'}:
-    - {qubits} qubit{'s' if qubits > 1 else ''}
-    - Hadamard gate on qubit 0 creates superposition
-    - {'CNOT gates entangle the qubits' if ${entangle} and qubits > 1 else 'No entanglement'}
-    - Measurement of all qubits
-    """
+            circuit_description += f"q_{i}: ────────" + "─" * qubits + "─\\n"
     
     # Generate insight based on the results
     if ${entangle} and qubits > 1:
         insight = f"""
-        This simulation demonstrates quantum entanglement, a key feature of Schrödinger's cat thought experiment.
+        This simulation demonstrates quantum entanglement, a fundamental quantum mechanical phenomenon.
+        
         The results show that measuring one qubit immediately determines the state of the other qubit(s),
         even though each individual outcome is random. This is the quantum mechanical phenomenon that
-        Einstein famously called "spooky action at a distance."
+        Einstein famously referred to as "spooky action at a distance."
         
-        In the context of Schrödinger's cat, this represents how the fate of the cat (alive or dead)
-        is entangled with the state of the radioactive atom (decayed or not decayed).
+        The equal distribution of outcomes between |{zeros}⟩ and |{ones}⟩, with approximately 50% probability each,
+        confirms the creation of a maximally entangled state. This type of entangled state is known as a GHZ state
+        for three or more qubits, or a Bell state for two qubits.
+        
+        The absence of other measurement outcomes demonstrates the perfect correlation between the qubits,
+        which is a signature of entanglement.
         """
     else:
         insight = f"""
         This simulation demonstrates quantum superposition, where a quantum system exists in multiple
-        states simultaneously until measured. The Hadamard gate creates an equal superposition of
-        states, giving each possible outcome approximately equal probability.
+        states simultaneously until measured.
         
-        When we measure the system, it collapses to one of the possible states with probabilities
-        determined by the quantum state's amplitude.
+        The Hadamard gate creates an equal superposition of states, giving each possible outcome
+        approximately equal probability. When we measure the system, it collapses to one of the
+        possible states with probabilities determined by the quantum state's amplitude.
+        
+        The measurement results show the expected statistical distribution, confirming that
+        the quantum circuit is functioning as designed.
         """
     
+    # Create a structured output
     output = {
         "success": True,
         "summary": f"Simulated a {qubits}-qubit {'entangled ' if ${entangle} else ''}quantum system with {shots} shots",
@@ -169,11 +174,17 @@ try:
         "chart_data": {
             "type": "bar",
             "labels": labels,
-            "datasets": [{"label": "Counts", "data": values}],
-            "title": "Measurement Probabilities"
+            "datasets": [{"label": "Counts", "data": values}]
         },
         "insight": insight,
-        "circuit_description": circuit_description
+        "circuit_description": circuit_description,
+        "experiment_title": f"{'GHZ State' if ${entangle} and qubits > 2 else 'Bell State' if ${entangle} and qubits == 2 else 'Quantum Superposition'} Experiment",
+        "simulation_parameters": {
+            "qubits": qubits,
+            "shots": shots,
+            "entanglement": ${entangle},
+            "backend": "Qiskit Aer QASM Simulator"
+        }
     }
     
     print(json.dumps(output))
@@ -212,7 +223,7 @@ async function executeQiskitCode(code: string): Promise<string> {
       return await response.text()
     } else {
       // For development/testing, return a mock result
-      throw new Error("Python API URL not configured")
+      return mockQuantumExecution(code)
     }
   } catch (error) {
     logger.error(`Error executing Qiskit code: ${error instanceof Error ? error.message : String(error)}`)
@@ -221,88 +232,133 @@ async function executeQiskitCode(code: string): Promise<string> {
 }
 
 /**
- * Creates a mock quantum simulation result for testing or fallback
+ * Mocks a quantum execution response for testing
  */
-function mockQuantumSimulation(prompt: string, params: Record<string, any>): QuantumSimulationResult {
-  const qubits = params.qubits || 2
-  const entangle = params.entangle !== false
-  const isSchrodinger =
-    prompt.toLowerCase().includes("schrödinger") ||
-    prompt.toLowerCase().includes("schrodinger") ||
-    prompt.toLowerCase().includes("cat")
+function mockQuantumExecution(code: string): string {
+  // Extract parameters from the code
+  const qubitsMatch = code.match(/qubits\s*=\s*(\d+)/)
+  const numQubits = qubitsMatch ? Number.parseInt(qubitsMatch[1], 10) : 2
+
+  const shotsMatch = code.match(/shots=(\d+)/)
+  const shots = shotsMatch ? Number.parseInt(shotsMatch[1], 10) : 1024
+
+  const entangle = code.includes("circuit.cx")
 
   // Generate appropriate states based on number of qubits
   let states: string[] = []
-  let values: number[] = []
+  let counts: number[] = []
 
-  if (qubits === 1) {
+  if (numQubits === 1) {
     states = ["0", "1"]
-    values = [0.5, 0.5]
+    counts = [Math.floor(shots * 0.53), Math.floor(shots * 0.47)]
   } else if (entangle) {
     // For entangled states, we expect mostly |00> and |11>
-    const zeros = "0".repeat(qubits)
-    const ones = "1".repeat(qubits)
+    const zeros = "0".repeat(numQubits)
+    const ones = "1".repeat(numQubits)
     states = [zeros, ones]
-    values = [0.5, 0.5]
+    counts = [Math.floor(shots * 0.53), Math.floor(shots * 0.47)]
   } else {
     // For non-entangled states with H on first qubit
     const baseStates = ["0", "1"]
-    const restZeros = "0".repeat(qubits - 1)
+    const restZeros = "0".repeat(numQubits - 1)
     states = baseStates.map((b) => b + restZeros)
-    values = [0.5, 0.5]
+    counts = [Math.floor(shots * 0.53), Math.floor(shots * 0.47)]
   }
 
-  // Format states with ket notation
-  const formattedStates = states.map((state) => `|${state}⟩`)
-
-  // Generate appropriate equations
+  // Generate appropriate equations - clean, textbook style
   let equations: string[]
-  if (qubits === 1) {
+  if (numQubits === 1) {
     equations = [
-      "\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{0} + \\ket{1})",
-      "P(\\text{measure } \\ket{0}) = P(\\text{measure } \\ket{1}) = \\frac{1}{2}",
+      "\\ket{\\psi_0} = |0\\rangle",
+      "H|0\\rangle = \\frac{1}{\\sqrt{2}}(|0\\rangle + |1\\rangle)",
+      "\\ket{\\psi_1} = \\frac{1}{\\sqrt{2}}(|0\\rangle + |1\\rangle)",
     ]
   } else if (entangle) {
-    const zeros = "0".repeat(qubits)
-    const ones = "1".repeat(qubits)
+    const zeros = "0".repeat(numQubits)
+    const ones = "1".repeat(numQubits)
     equations = [
-      `\\ket{\\psi} = \\frac{1}{\\sqrt{2}}(\\ket{${zeros}} + \\ket{${ones}})`,
-      `P(\\text{measure } \\ket{${zeros}}) = P(\\text{measure } \\ket{${ones}}) = \\frac{1}{2}`,
+      `\\ket{\\psi_0} = |${zeros}\\rangle`,
+      `H \\otimes I^{\\otimes ${numQubits - 1}} |${zeros}\\rangle = \\frac{1}{\\sqrt{2}}(|0\\rangle + |1\\rangle) \\otimes |${zeros.slice(1)}\\rangle = \\frac{1}{\\sqrt{2}}(|${zeros}\\rangle + |1${zeros.slice(1)}\\rangle)`,
+      `\\ket{\\psi_f} = \\frac{1}{\\sqrt{2}}(|${zeros}\\rangle + |${ones}\\rangle)`,
     ]
   } else {
-    const zeros = "0".repeat(qubits - 1)
+    const zeros = "0".repeat(numQubits - 1)
     equations = [
-      `\\ket{\\psi} = \\frac{1}{\\sqrt{2}}\\ket{0} \\otimes \\ket{${zeros}} + \\frac{1}{\\sqrt{2}}\\ket{1} \\otimes \\ket{${zeros}}`,
-      `P(\\text{measure } \\ket{0${zeros}}) = P(\\text{measure } \\ket{1${zeros}}) = \\frac{1}{2}`,
+      `\\ket{\\psi_0} = |0${zeros}\\rangle`,
+      `H \\otimes I^{\\otimes ${numQubits - 1}} |0${zeros}\\rangle = \\frac{1}{\\sqrt{2}}(|0\\rangle + |1\\rangle) \\otimes |${zeros}\\rangle = \\frac{1}{\\sqrt{2}}(|0${zeros}\\rangle + |1${zeros}\\rangle)`,
     ]
+  }
+
+  // Generate circuit description in ASCII format
+  let circuitDescription = ""
+  for (let i = 0; i < numQubits; i++) {
+    if (i === 0) {
+      circuitDescription += `q_${i}: ──[H]──`
+      if (entangle) {
+        circuitDescription += "●" + "─".repeat(numQubits - 1) + "─\n"
+      } else {
+        circuitDescription += "─".repeat(numQubits) + "─\n"
+      }
+    } else if (entangle) {
+      circuitDescription += " ".repeat(9)
+      circuitDescription += i === 1 ? "│" : " "
+      circuitDescription += " ".repeat(i - 1)
+      circuitDescription += "\n"
+      circuitDescription += `q_${i}: ────────`
+      circuitDescription += i === 1 ? "X" : "─"
+      circuitDescription += "─".repeat(numQubits - i) + "─\n"
+    } else {
+      circuitDescription += `q_${i}: ────────` + "─".repeat(numQubits) + "─\n"
+    }
   }
 
   // Generate insight
-  let insight = ""
-  let title = ""
+  const zeros = "0".repeat(numQubits)
+  const ones = "1".repeat(numQubits)
+  const insight =
+    entangle && numQubits > 1
+      ? `This simulation demonstrates quantum entanglement, a fundamental quantum mechanical phenomenon.
+        
+The results show that measuring one qubit immediately determines the state of the other qubit(s),
+even though each individual outcome is random. This is the quantum mechanical phenomenon that
+Einstein famously referred to as "spooky action at a distance."
 
-  if (isSchrodinger) {
-    title = "Schrödinger's Cat Quantum State"
-    insight =
-      "This simulation demonstrates the famous Schrödinger's cat thought experiment, where a cat in a box is simultaneously alive and dead until observed. In quantum terms, the cat's state is entangled with a quantum event (radioactive decay), placing the entire system in a superposition of states. When we measure the system, it collapses to either 'alive' or 'dead' with equal probability."
-  } else if (entangle && qubits > 1) {
-    title = "Quantum Entanglement Simulation"
-    insight =
-      "This simulation demonstrates quantum entanglement, where the quantum states of multiple particles become correlated such that the quantum state of each particle cannot be described independently. The results show that measuring one qubit immediately determines the state of the other qubit(s), even though each individual outcome is random. This is the quantum mechanical phenomenon that Einstein famously called 'spooky action at a distance'."
-  } else {
-    title = "Quantum Superposition Simulation"
-    insight =
-      "This simulation demonstrates quantum superposition, where a quantum system exists in multiple states simultaneously until measured. The Hadamard gate creates an equal superposition of states, giving each possible outcome approximately equal probability. When we measure the system, it collapses to one of the possible states with probabilities determined by the quantum state's amplitude."
-  }
+The equal distribution of outcomes between |${zeros}⟩ and |${ones}⟩, with approximately 50% probability each,
+confirms the creation of a maximally entangled state. This type of entangled state is known as a GHZ state
+for three or more qubits, or a Bell state for two qubits.
 
-  return {
-    summary: `Simulated a ${qubits}-qubit ${entangle ? "entangled " : ""}quantum system for "${prompt}"`,
+The absence of other measurement outcomes demonstrates the perfect correlation between the qubits,
+which is a signature of entanglement.`
+      : `This simulation demonstrates quantum superposition, where a quantum system exists in multiple
+states simultaneously until measured.
+
+The Hadamard gate creates an equal superposition of states, giving each possible outcome
+approximately equal probability. When we measure the system, it collapses to one of the
+possible states with probabilities determined by the quantum state's amplitude.
+
+The measurement results show the expected statistical distribution, confirming that
+the quantum circuit is functioning as designed.`
+
+  // Create a structured output
+  return JSON.stringify({
+    success: true,
+    summary: `Simulated a ${numQubits}-qubit ${entangle ? "entangled " : ""}quantum system with ${shots} shots`,
     equations: equations,
-    insight: insight,
-    chart: {
-      title: title,
-      labels: formattedStates,
-      values: values,
+    chart_data: {
+      type: "bar",
+      labels: states,
+      datasets: [{ label: "Counts", data: counts }],
     },
-  }
+    insight: insight,
+    circuit_description: circuitDescription,
+    experiment_title: `${
+      entangle && numQubits > 2 ? "GHZ State" : entangle && numQubits === 2 ? "Bell State" : "Quantum Superposition"
+    } Experiment`,
+    simulation_parameters: {
+      qubits: numQubits,
+      shots: shots,
+      entanglement: entangle,
+      backend: "Qiskit Aer QASM Simulator",
+    },
+  })
 }

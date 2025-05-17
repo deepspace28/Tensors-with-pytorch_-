@@ -1,3 +1,6 @@
+// Remove the environment variable import
+// import * as env from "@/app/env"
+
 // Define the types for our scientific engine responses
 export interface ScientificResponse {
   title: string
@@ -83,33 +86,29 @@ function extractJsonFromString(str: string): string {
 // Function to call the Groq API for scientific content
 export async function generateScientificContent(prompt: string): Promise<ScientificResponse> {
   try {
-    // Use only the server-side environment variable
-    const apiKey = process.env.GROQ_API_KEY
-
-    if (!apiKey) {
-      throw new Error("GROQ API key is not defined")
-    }
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Use the server-side API route instead of direct API call
+    const response = await fetch("/api/groq-proxy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [
-          {
-            role: "system",
-            content: SCIENTIFIC_SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 4000,
+        endpoint: "chat/completions",
+        payload: {
+          model: "llama3-70b-8192",
+          messages: [
+            {
+              role: "system",
+              content: SCIENTIFIC_SYSTEM_PROMPT,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 4000,
+        },
       }),
     })
 
@@ -161,13 +160,6 @@ export async function generateScientificContent(prompt: string): Promise<Scienti
 // Function to call the Groq API for simulations
 export async function generateSimulation(prompt: string) {
   try {
-    // Use only the server-side environment variable
-    const apiKey = process.env.GROQ_API_KEY
-
-    if (!apiKey) {
-      throw new Error("GROQ API key is not defined")
-    }
-
     const systemPrompt = `You are a scientific experiment compiler. Given a freeform experiment request, return:
 
 A title
@@ -184,26 +176,29 @@ A 3-5 sentence explanation of the result
 Respond in strict JSON format.
 DO NOT include any comments, explanations, or non-JSON content in your response.`
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Use the server-side API route instead of direct API call
+    const response = await fetch("/api/groq-proxy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 4000,
+        endpoint: "chat/completions",
+        payload: {
+          model: "llama3-70b-8192",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 4000,
+        },
       }),
     })
 

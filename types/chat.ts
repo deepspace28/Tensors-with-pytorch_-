@@ -1,30 +1,24 @@
-export interface Message {
-  id: string
-  role: "user" | "assistant" | "system"
-  content: string
-  timestamp: Date
-  simulationResult?: any
-  simulationType?: string
-  sections?: MessageSection[]
-}
+export type InteractionMode = "exploratory" | "hypothesis" | "debate" | "co-creation"
+
+export type MessageRole = "user" | "assistant" | "system"
 
 export interface MessageSection {
-  type: string
+  type: "summary" | "derivation" | "visualization" | "insights"
   content: string
+}
+
+export interface Message {
+  id: string
+  role: MessageRole
+  content: string
+  sections?: MessageSection[]
+  timestamp: Date
 }
 
 export interface ChatState {
   messages: Message[]
   isLoading: boolean
-  interactionMode: string
-  isGuest: boolean
+  interactionMode: InteractionMode
   queriesRemaining: number
-}
-
-export interface Conversation {
-  _id: string
-  title: string
-  messages: Message[]
-  createdAt: string
-  updatedAt: string
+  isGuest: boolean
 }
