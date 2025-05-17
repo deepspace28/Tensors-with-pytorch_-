@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     logger.info(`Received quantum simulation request: ${prompt}`)
 
-    // Get the API key from environment variables - server-side only
+    // Get the API key from environment variables - use server-side only
     const apiKey = process.env.GROQ_API_KEY
 
     if (!apiKey) {

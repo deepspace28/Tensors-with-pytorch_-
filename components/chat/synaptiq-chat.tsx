@@ -145,7 +145,7 @@ export function SynaptiqChat() {
 
     try {
       // Choose the appropriate API endpoint based on the chat mode
-      const endpoint = chatMode === "search" ? "/api/search" : chatMode === "reason" ? "/api/reason" : "/api/chat"
+      const endpoint = chatMode === "search" ? "/api/search" : "/api/chat"
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -160,7 +160,7 @@ export function SynaptiqChat() {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch response from ${endpoint}: ${response.status}`)
+        throw new Error(`Failed to fetch response from ${endpoint}`)
       }
 
       const data = await response.json()
@@ -199,25 +199,9 @@ export function SynaptiqChat() {
 
       if (chatMode === "search") {
         errorMessage =
-          "I apologize, but I encountered an error while searching. I'll answer based on my knowledge instead.\n\n" +
-          "Based on what I know about " +
-          userMessage.content +
-          ", "
-
-        // Add some content based on common topics
-        if (userMessage.content.toLowerCase().includes("quantum")) {
-          errorMessage +=
-            "quantum physics deals with the behavior of matter and energy at the smallest scales. Key concepts include superposition, entanglement, and wave-particle duality."
-        } else if (
-          userMessage.content.toLowerCase().includes("ai") ||
-          userMessage.content.toLowerCase().includes("artificial intelligence")
-        ) {
-          errorMessage +=
-            "artificial intelligence refers to systems that can perform tasks that typically require human intelligence. This includes learning, reasoning, problem-solving, perception, and language understanding."
-        } else {
-          errorMessage +=
-            "this is an interesting topic that spans multiple domains of knowledge. I can provide more specific information if you have particular aspects you'd like to explore."
-        }
+          "I apologize, but I encountered an error while searching the web. Let me answer based on my knowledge instead.\n\n" +
+          "Based on my training data, I can tell you that " +
+          userMessage.content
       } else if (chatMode === "reason") {
         errorMessage =
           "I apologize, but I encountered an error while processing your request in reasoning mode. Let me provide a standard response instead.\n\n" +

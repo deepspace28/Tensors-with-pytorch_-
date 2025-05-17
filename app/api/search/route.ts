@@ -44,7 +44,7 @@ const fallbackSearchData = {
 
 export async function POST(req: Request) {
   try {
-    const { query, messages } = await req.json()
+    const { query } = await req.json()
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 })
@@ -52,11 +52,8 @@ export async function POST(req: Request) {
 
     console.log(`Searching for: ${query}`)
 
-    // Skip Google Search API in preview/development mode
-    const isPreviewOrDev = process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development"
-
-    // Only try to use Google Search API if we're not in preview/dev and have valid credentials
-    if (!isPreviewOrDev && GOOGLE_API_KEY && SEARCH_ENGINE_ID) {
+    // Try to use Google Search API first
+    if (GOOGLE_API_KEY && SEARCH_ENGINE_ID) {
       try {
         console.log("Attempting to use Google Search API")
         const searchResults = await fetchGoogleSearchResults(query)
@@ -64,8 +61,6 @@ export async function POST(req: Request) {
         if (searchResults && searchResults.items && searchResults.items.length > 0) {
           const formattedResponse = formatSearchResponse(query, searchResults.items)
           return NextResponse.json({ text: formattedResponse })
-        } else {
-          console.log("No search results found from Google API")
         }
       } catch (error: any) {
         console.error("Google Search API error:", error.message)
@@ -80,24 +75,19 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      if (isPreviewOrDev) {
-        console.log("Skipping Google Search API in preview/development environment")
-      } else {
-        console.log("Google Search API credentials not available")
-      }
+      console.log("Google Search API credentials not available")
     }
 
     // If we get here, either the API failed or credentials weren't available
     // Use fallback search mechanism
     console.log("Using fallback search mechanism")
-
-    // Generate a response based on the conversation context and query
-    const responseText = generateFallbackSearchResponse(query, messages)
-    return NextResponse.json({ text: responseText })
+    return NextResponse.json({
+      text: generateFallbackSearchResponse(query),
+    })
   } catch (error) {
     console.error("Error in search API:", error)
     return NextResponse.json({
-      text: "I apologize, but I encountered an error while processing your search request. I'll answer based on my knowledge instead.",
+      text: "I apologize, but I encountered an error while processing your search request. Please try again later.",
     })
   }
 }
@@ -106,7 +96,7 @@ async function fetchGoogleSearchResults(query: string) {
   const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`
 
   console.log("Fetching from Google API...")
-  const res = await fetch(url, { cache: "no-store" })
+  const res = await fetch(url)
 
   if (!res.ok) {
     const errorText = await res.text()
@@ -145,7 +135,7 @@ This information was gathered from web search results. For the most accurate and
   return response
 }
 
-function generateFallbackSearchResponse(query: string, messages?: any[]) {
+function generateFallbackSearchResponse(query: string) {
   // Check if we have fallback data for this query
   const normalizedQuery = query.toLowerCase()
   let matchedResults = null
@@ -161,15 +151,19 @@ function generateFallbackSearchResponse(query: string, messages?: any[]) {
   // If we don't have fallback data, generate a generic response
   if (!matchedResults) {
     return `
-# Information about: "${query}"
+# Search Results for: "${query}"
 
-I attempted to search the web for information about "${query}", but I'm currently using my internal knowledge to answer instead.
+I attempted to search the web for information about "${query}", but I encountered an issue with the search service.
 
-Based on what I know about "${query}":
+Instead, I'll provide information based on my training data:
 
-${generateKnowledgeBasedResponse(query, messages)}
+${query} is a topic that spans multiple domains of knowledge. To get the most accurate and up-to-date information, I recommend:
 
-For the most accurate and up-to-date information, I recommend consulting academic journals, reputable news sources, and educational websites related to this topic.
+1. Consulting academic journals and publications
+2. Checking reputable news sources for recent developments
+3. Exploring educational websites and online courses related to this topic
+
+If you have more specific questions about ${query}, please feel free to ask and I'll do my best to provide information based on my knowledge.
     `.trim()
   }
 
@@ -177,7 +171,7 @@ For the most accurate and up-to-date information, I recommend consulting academi
   return `
 # Search Results for: "${query}"
 
-I've found the following information about "${query}":
+I've searched for information about "${query}" and found the following:
 
 ## Summary
 Based on available information, ${query} is a topic with several important aspects worth exploring. The results provide both overview information and specific details.
@@ -188,46 +182,6 @@ ${matchedResults.map((result, index) => `${index + 1}. **${result.title}**: ${re
 ## Sources
 ${matchedResults.map((result, index) => `${index + 1}. [${result.title}](${result.link})`).join("\n\n")}
 
-Note: I'm providing information from my knowledge base. For the most up-to-date information, I recommend visiting the source websites or consulting specialized literature.
+Note: Due to technical limitations with the search service, I'm providing information from my knowledge base. For the most up-to-date information, I recommend visiting the source websites or consulting specialized literature.
   `.trim()
-}
-
-// Function to generate a response based on the model's knowledge
-function generateKnowledgeBasedResponse(query: string, messages?: any[]) {
-  // Scientific topics
-  if (query.toLowerCase().includes("quantum")) {
-    return `Quantum physics is a fundamental theory in physics that describes nature at the smallest scales of energy levels of atoms and subatomic particles. Key concepts include:
-
-1. **Quantum Superposition**: Particles can exist in multiple states simultaneously until measured
-2. **Quantum Entanglement**: Particles become connected and the quantum state of each particle cannot be described independently
-3. **Wave-Particle Duality**: Matter and light exhibit both wave-like and particle-like properties
-4. **Heisenberg Uncertainty Principle**: The position and momentum of a particle cannot be simultaneously measured with high precision
-
-Quantum computing leverages these principles to perform calculations using quantum bits (qubits) that can represent multiple states simultaneously.`
-  }
-
-  if (query.toLowerCase().includes("relativity") || query.toLowerCase().includes("einstein")) {
-    return `Einstein's theory of relativity consists of two physical theories:
-
-1. **Special Relativity (1905)**: Describes the relationship between space and time, introducing concepts like:
-   - The speed of light is constant for all observers
-   - Time dilation and length contraction occur at speeds approaching the speed of light
-   - Mass and energy are equivalent (E=mc²)
-
-2. **General Relativity (1915)**: Extends special relativity to include gravity:
-   - Gravity is not a force but a curvature of spacetime caused by mass and energy
-   - Predicts phenomena like gravitational waves, black holes, and the bending of light around massive objects
-   
-These theories revolutionized our understanding of space, time, and gravity, replacing Newton's theories for extreme conditions.`
-  }
-
-  // Generic response for other topics
-  return `This topic spans multiple domains of knowledge. Some key points to consider:
-
-1. The fundamental principles and concepts that define this subject
-2. Historical development and major breakthroughs in the field
-3. Current applications and relevance in today's world
-4. Future directions and ongoing research
-
-I can provide more specific information if you have particular aspects you'd like to explore.`
 }

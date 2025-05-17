@@ -1,4 +1,3 @@
-// import * as env from "@/app/env"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {

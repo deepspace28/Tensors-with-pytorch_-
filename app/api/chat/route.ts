@@ -60,18 +60,11 @@ export async function POST(req: Request) {
     }
 
     try {
-      // Use the server-side environment variable
-      const apiKey = process.env.GROQ_API_KEY
-
-      if (!apiKey) {
-        throw new Error("GROQ API key is not defined")
-      }
-
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         },
         body: JSON.stringify({
           model: "llama3-70b-8192",

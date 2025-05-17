@@ -12,10 +12,9 @@ interface DynamicOutputProps {
   isProcessing: boolean
   simulationData: any
   results: any
-  steps?: string[]
 }
 
-export function DynamicOutput({ isProcessing, simulationData, results, steps = [] }: DynamicOutputProps) {
+export function DynamicOutput({ isProcessing, simulationData, results }: DynamicOutputProps) {
   const chartRef = useRef<Chart | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const threeContainerRef = useRef<HTMLDivElement>(null)
@@ -56,11 +55,7 @@ export function DynamicOutput({ isProcessing, simulationData, results, steps = [
     if (katexLoaded && simulationData?.equations) {
       renderEquations()
     }
-
-    if (katexLoaded && steps && steps.length > 0) {
-      renderSteps()
-    }
-  }, [katexLoaded, simulationData, steps])
+  }, [katexLoaded, simulationData])
 
   const render2DVisualization = () => {
     if (!canvasRef.current || !results) return
@@ -271,28 +266,6 @@ export function DynamicOutput({ isProcessing, simulationData, results, steps = [
     }
   }
 
-  const renderSteps = () => {
-    try {
-      // Safely check if KaTeX is loaded and the container exists
-      if (
-        typeof window !== "undefined" &&
-        window.renderMathInElement &&
-        typeof window.renderMathInElement === "function" &&
-        document.getElementById("steps-container")
-      ) {
-        window.renderMathInElement(document.getElementById("steps-container"), {
-          delimiters: [
-            { left: "$$", right: "$$", display: true },
-            { left: "$", right: "$", display: false },
-          ],
-          throwOnError: false,
-        })
-      }
-    } catch (error) {
-      console.error("Error rendering steps:", error)
-    }
-  }
-
   // Load KaTeX from CDN
   useEffect(() => {
     let isMounted = true
@@ -372,37 +345,6 @@ export function DynamicOutput({ isProcessing, simulationData, results, steps = [
         </div>
       ) : (
         <>
-          {/* Step-by-Step Math Solution Section */}
-          {steps && steps.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-300">Step-by-Step Solution</h3>
-              <div id="steps-container" className="space-y-4 font-serif">
-                {steps.map((step, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.2 }}
-                    className="py-3 px-4 bg-[#111111] border border-gray-900 rounded-md overflow-x-auto"
-                  >
-                    <div className="flex items-start">
-                      <div className="bg-gray-800 text-gray-300 rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
-                        {index + 1}
-                      </div>
-                      <div className="flex-grow">
-                        {katexLoaded ? (
-                          <div dangerouslySetInnerHTML={{ __html: step }} />
-                        ) : (
-                          <div className="text-gray-400 font-mono text-sm whitespace-pre-wrap">{step}</div>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Visualization Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-300">Visualization</h3>

@@ -18,29 +18,26 @@ Respond in strict JSON format.`
 
 export async function generateSimulation(prompt: string) {
   try {
-    // Use the server-side API route instead of direct API call
-    const response = await fetch("/api/groq-proxy", {
+    // Use the secure API route instead of direct API call
+    const response = await fetch("/api/secure-groq", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        endpoint: "chat/completions",
-        payload: {
-          model: "llama3-70b-8192",
-          messages: [
-            {
-              role: "system",
-              content: SYSTEM_PROMPT,
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 4000,
-        },
+        model: "llama3-70b-8192",
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 4000,
       }),
     })
 

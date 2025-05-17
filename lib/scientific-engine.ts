@@ -1,6 +1,3 @@
-// Remove the environment variable import
-// import * as env from "@/app/env"
-
 // Define the types for our scientific engine responses
 export interface ScientificResponse {
   title: string
@@ -83,32 +80,29 @@ function extractJsonFromString(str: string): string {
   return cleanJsonString(str)
 }
 
-// Function to call the Groq API for scientific content
+// Update the generateScientificContent function
 export async function generateScientificContent(prompt: string): Promise<ScientificResponse> {
   try {
-    // Use the server-side API route instead of direct API call
-    const response = await fetch("/api/groq-proxy", {
+    // Use the secure API route instead of direct API call
+    const response = await fetch("/api/secure-groq", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        endpoint: "chat/completions",
-        payload: {
-          model: "llama3-70b-8192",
-          messages: [
-            {
-              role: "system",
-              content: SCIENTIFIC_SYSTEM_PROMPT,
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 4000,
-        },
+        model: "llama3-70b-8192",
+        messages: [
+          {
+            role: "system",
+            content: SCIENTIFIC_SYSTEM_PROMPT,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 4000,
       }),
     })
 
@@ -157,7 +151,7 @@ export async function generateScientificContent(prompt: string): Promise<Scienti
   }
 }
 
-// Function to call the Groq API for simulations
+// Update the generateSimulation function
 export async function generateSimulation(prompt: string) {
   try {
     const systemPrompt = `You are a scientific experiment compiler. Given a freeform experiment request, return:
@@ -176,29 +170,26 @@ A 3-5 sentence explanation of the result
 Respond in strict JSON format.
 DO NOT include any comments, explanations, or non-JSON content in your response.`
 
-    // Use the server-side API route instead of direct API call
-    const response = await fetch("/api/groq-proxy", {
+    // Use the secure API route instead of direct API call
+    const response = await fetch("/api/secure-groq", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        endpoint: "chat/completions",
-        payload: {
-          model: "llama3-70b-8192",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 4000,
-        },
+        model: "llama3-70b-8192",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 4000,
       }),
     })
 
