@@ -57,128 +57,33 @@ If there are multiple valid approaches, acknowledge them and explain why you cho
 
 // Client-side AI service
 export class ClientAIService {
-  private apiKey: string | null = null
-  private authToken: string | null = null
-  private tokenExpiry = 0
-
-  constructor(private readonly apiKeyFromEnv?: string) {
-    // If API key is provided directly (development only), use it
-    if (apiKeyFromEnv) {
-      this.apiKey = apiKeyFromEnv
-    }
+  // Remove direct API key usage from client-side code
+  constructor() {
+    // No API key should be stored here
   }
 
-  // Get a fresh auth token
-  private async refreshToken(): Promise<string> {
-    try {
-      const response = await fetch("/api/auth/token")
-      if (!response.ok) {
-        throw new Error(`Failed to get token: ${response.status}`)
-      }
-      const data = await response.json()
-      this.authToken = data.token
-      this.tokenExpiry = Date.now() + 14 * 60 * 1000 // Set expiry to 14 minutes (token is valid for 15)
-      return this.authToken
-    } catch (error) {
-      console.error("Error refreshing token:", error)
-      throw error
-    }
-  }
-
-  // Get the API key from the server
-  private async getApiKey(): Promise<string> {
-    try {
-      // If we already have a valid token, use it
-      if (this.authToken && Date.now() < this.tokenExpiry) {
-        // Use the token to get the API key
-        const response = await fetch("/api/auth/key", {
-          headers: {
-            Authorization: `Bearer ${this.authToken}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to get API key: ${response.status}`)
-        }
-
-        const data = await response.json()
-        this.apiKey = data.key
-        return this.apiKey
-      } else {
-        // Get a new token first
-        await this.refreshToken()
-        // Then recursively call this method again
-        return this.getApiKey()
-      }
-    } catch (error) {
-      console.error("Error getting API key:", error)
-      throw error
-    }
-  }
-
-  // Send a chat request to the Groq API
+  // Send a chat request to the server-side proxy
   async sendChatRequest(messages: Message[], mode = "default"): Promise<ChatResponse> {
     try {
       // Get the last user message for potential fallback
       const lastUserMessage = messages.filter((m) => m.role === "user").pop()
       const userQuery = lastUserMessage?.content || ""
 
-      // Select the appropriate system prompt
-      const systemPrompt = mode === "reason" ? REASONING_SYSTEM_PROMPT : SCIENTIFIC_SYSTEM_PROMPT
-      const systemMessage = { role: "system", content: systemPrompt }
-
-      // Try to get the API key if we don't have it
-      if (!this.apiKey && !this.apiKeyFromEnv) {
-        try {
-          await this.getApiKey()
-        } catch (error) {
-          console.warn("Failed to get API key, using local fallback")
-          return {
-            text:
-              LocalAI.getResponse(userQuery) +
-              "\n\n(Note: I'm currently operating in offline mode with limited capabilities.)",
-          }
-        }
-      }
-
-      // Use the API key from environment if available (for development)
-      const key = this.apiKey || this.apiKeyFromEnv
-
-      if (!key) {
-        console.warn("No API key available, using local fallback")
-        return {
-          text:
-            LocalAI.getResponse(userQuery) +
-            "\n\n(Note: I'm currently operating in offline mode with limited capabilities.)",
-        }
-      }
-
-      // Create a timeout for the fetch request
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
-      // Make the request to Groq API
-      const response = await fetch(GROQ_API_URL, {
+      // Use server-side proxy instead of direct Groq API call
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: MODEL,
-          messages: [systemMessage, ...messages],
-          temperature: mode === "reason" ? 0.5 : 0.7,
-          max_tokens: 4096,
+          messages,
+          mode,
         }),
-        signal: controller.signal,
       })
-
-      // Clear the timeout
-      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "Unknown error")
-        console.error("Groq API error:", response.status, errorText)
+        console.error("API error:", response.status, errorText)
 
         // Use local fallback if API request fails
         return {
@@ -190,7 +95,7 @@ export class ClientAIService {
       }
 
       const data = await response.json()
-      return { text: data.choices[0]?.message?.content || "No response from Groq." }
+      return { text: data.text || "No response from the AI service." }
     } catch (error) {
       console.error("Error in sendChatRequest:", error)
 
@@ -217,8 +122,4 @@ export class ClientAIService {
 }
 
 // Create a singleton instance
-export const clientAIService = new ClientAIService(
-  typeof window !== "undefined" && process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_GROQ_API_KEY
-    : undefined,
-)
+export const clientAIService = new ClientAIService()

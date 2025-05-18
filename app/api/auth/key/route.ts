@@ -1,30 +1,41 @@
 import { NextResponse } from "next/server"
+import { verify } from "jsonwebtoken"
 
-// CORS headers for all responses
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-}
+// This endpoint provides the API key only to authenticated requests
+export async function GET(req: Request) {
+  try {
+    // Get the authorization header
+    const authHeader = req.headers.get("authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-// This is a simplified example - in a real app, you would implement proper authentication
-export async function GET() {
-  // Check if the request is authenticated
-  // In a real app, you would check for a valid session or token
-  const isAuthenticated = true
+    // Extract the token
+    const token = authHeader.split(" ")[1]
 
-  if (!isAuthenticated) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders })
+    // Verify the token
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is not defined")
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+    }
+
+    try {
+      verify(token, process.env.JWT_SECRET)
+    } catch (error) {
+      console.error("Invalid token:", error)
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
+    // Check if GROQ_API_KEY is available
+    if (!process.env.GROQ_API_KEY) {
+      console.error("GROQ_API_KEY is not defined")
+      return NextResponse.json({ error: "API key not configured" }, { status: 500 })
+    }
+
+    // Return the API key
+    return NextResponse.json({ key: process.env.GROQ_API_KEY })
+  } catch (error) {
+    console.error("Error in /api/auth/key:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  // Get the API key from environment variables
-  const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
-
-  if (!apiKey) {
-    return NextResponse.json({ error: "API key not configured" }, { status: 500, headers: corsHeaders })
-  }
-
-  // Return the API key
-  // In a real app, you might want to encrypt this or use a more secure method
-  return NextResponse.json({ key: apiKey }, { status: 200, headers: corsHeaders })
 }

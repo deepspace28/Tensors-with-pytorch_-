@@ -18,7 +18,7 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     // Check if GROQ API key is available
-    const groqApiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
+    const groqApiKey = process.env.GROQ_API_KEY // Removed NEXT_PUBLIC prefix
 
     // Initialize status
     let groqStatus = {

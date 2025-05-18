@@ -63,7 +63,7 @@ export function QuantumExperimentDisplay({
             <div className="space-y-4">
               {mathematicalFormalism.map((equation, index) => (
                 <div key={index} className="py-2 text-center">
-                  $${equation}$$
+                  <p>{equation}</p>
                 </div>
               ))}
             </div>

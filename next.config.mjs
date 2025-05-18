@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -17,14 +16,10 @@ const nextConfig = {
     NEXT_PUBLIC_BASE_URL: process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}` 
       : 'http://localhost:3000',
-    NEXT_PUBLIC_GROQ_API_KEY: process.env.GROQ_API_KEY,
   },
   // Add proper error handling for API routes
   experimental: {
-    serverComponentsExternalPackages: ['sharp'],
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
+    serverExternalPackages: ['sharp'],
   },
   // Ensure proper handling of API routes
   async headers() {
