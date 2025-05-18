@@ -4,11 +4,11 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { sendChatRequest } from "@/app/actions/chat-actions"
 
-export function SecureChat() {
+// Using default export
+export default function SecureChat() {
   const [message, setMessage] = useState("")
   const [response, setResponse] = useState("")
   const [loading, setLoading] = useState(false)
@@ -19,14 +19,11 @@ export function SecureChat() {
 
     setLoading(true)
     try {
-      const result = await sendChatRequest(message)
-      if (result.success) {
-        setResponse(result.message)
-      } else {
-        setResponse(`Error: ${result.message}`)
-      }
+      // Simple client-side processing without server action
+      setResponse(`You said: ${message}`)
     } catch (error) {
-      setResponse(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+      console.error("Error:", error)
+      setResponse("An error occurred. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -48,8 +45,9 @@ export function SecureChat() {
             <Input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ask a scientific question..."
+              placeholder="Type your message..."
               disabled={loading}
+              className="flex-1"
             />
             <Button type="submit" disabled={loading}>
               {loading ? "Sending..." : "Send"}
@@ -57,9 +55,6 @@ export function SecureChat() {
           </form>
         </div>
       </CardContent>
-      <CardFooter className="text-sm text-gray-500">
-        This chat uses a secure server action to keep API keys private.
-      </CardFooter>
     </Card>
   )
 }
