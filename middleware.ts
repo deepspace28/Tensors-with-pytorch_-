@@ -1,27 +1,45 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export function middleware(request: NextRequest) {
-  // Get user information from cookies or headers
-  const userId = request.cookies.get("userId")?.value || "anonymous"
-  const userType = request.cookies.get("userType")?.value || "anonymous"
-
-  // Clone the request headers
-  const requestHeaders = new Headers(request.headers)
-
-  // Add user information to headers for API routes
-  requestHeaders.set("x-user-id", userId)
-  requestHeaders.set("x-user-type", userType)
-
-  // Return response with modified headers
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  })
+// Comprehensive CORS headers
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Max-Age": "86400",
 }
 
-// Only run middleware on API routes
+export function middleware(request: NextRequest) {
+  console.log("Middleware called for:", request.nextUrl.pathname, "Method:", request.method)
+
+  // Handle OPTIONS requests immediately
+  if (request.method === "OPTIONS") {
+    console.log("Handling OPTIONS request")
+    return new NextResponse(null, {
+      status: 204,
+      headers: corsHeaders,
+    })
+  }
+
+  // For API routes, add CORS headers
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    console.log("Adding CORS headers to API route")
+
+    // Get the response
+    const response = NextResponse.next()
+
+    // Add CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+
+    return response
+  }
+
+  // For other routes, just continue
+  return NextResponse.next()
+}
+
 export const config = {
-  matcher: "/api/:path*",
+  matcher: ["/api/:path*"],
 }

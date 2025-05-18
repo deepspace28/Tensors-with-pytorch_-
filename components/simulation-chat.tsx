@@ -2,152 +2,122 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Send, Loader2 } from "lucide-react"
-
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  timestamp: Date
-}
+import { Textarea } from "@/components/ui/textarea"
+import { Loader2, Send } from "lucide-react"
 
 interface SimulationChatProps {
   simulationContext: {
     type: string
-    parameters?: Record<string, any>
-    results?: Record<string, any>
+    parameters: any
+    results: any
   }
 }
 
 export function SimulationChat({ simulationContext }: SimulationChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([
     {
-      id: "welcome",
       role: "assistant",
-      content: "The simulation is complete. How can I help you understand the results or suggest modifications?",
-      timestamp: new Date(),
+      content: `I'm your quantum simulation assistant. This is a ${simulationContext.type} simulation. Ask me anything about the results or quantum mechanics in general!`,
     },
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Scroll to bottom of messages when new ones are added
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!input.trim()) return
 
-    // Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    }
-
+    const userMessage = { role: "user", content: input }
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
 
     try {
-      // Send message to API with simulation context
-      const response = await fetch("/api/chat", {
+      // Use the secure API route
+      const response = await fetch("/api/secure-groq", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          mode: "simulation",
-          simulationContext,
+          prompt: `
+            Context: You are discussing a ${simulationContext.type} quantum simulation.
+            The simulation parameters: ${JSON.stringify(simulationContext.parameters)}
+            The simulation results: ${JSON.stringify(simulationContext.results)}
+            
+            User question: ${input}
+            
+            Provide a helpful, scientifically accurate response about the simulation.
+          `,
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`)
+        throw new Error("Failed to get response")
       }
 
       const data = await response.json()
-
-      // Add assistant response
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
+      const assistantMessage = {
         role: "assistant",
-        content: data.text || "I'm sorry, I couldn't process that request.",
-        timestamp: new Date(),
+        content: data.choices[0].message.content,
       }
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
-      console.error("Error sending message:", error)
-
-      // Add error message
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content: "I encountered an error processing your request. Please try again.",
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, errorMessage])
+      console.error("Error getting chat response:", error)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I encountered an error processing your request. Please try again.",
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Card className="mt-8 border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+    <Card className="mt-6">
       <CardHeader>
-        <CardTitle className="text-gray-900 dark:text-gray-100">Discuss Simulation Results</CardTitle>
+        <CardTitle>Simulation Chat</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px] overflow-y-auto mb-4 space-y-4 p-4 rounded-md bg-gray-50 dark:bg-gray-900">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === "user"
-                    ? "bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100"
-                    : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                }`}
-              >
-                <div
-                  className="prose dark:prose-invert max-w-none text-sm"
-                  dangerouslySetInnerHTML={{ __html: message.content }}
-                />
-              </div>
+        <div className="space-y-4 mb-4 max-h-[400px] overflow-y-auto p-2">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`p-3 rounded-lg ${
+                message.role === "user"
+                  ? "bg-primary text-primary-foreground ml-auto max-w-[80%]"
+                  : "bg-muted max-w-[80%]"
+              }`}
+            >
+              {message.content}
             </div>
           ))}
-          <div ref={messagesEndRef} />
+          {isLoading && (
+            <div className="flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          )}
         </div>
-      </CardContent>
-      <CardFooter>
-        <form onSubmit={handleSendMessage} className="flex w-full gap-2">
-          <Input
+
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about the simulation or suggest changes..."
-            disabled={isLoading}
-            className="flex-1"
+            placeholder="Ask about the simulation results..."
+            className="flex-1 min-h-[60px]"
           />
-          <Button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            <span className="ml-2">Send</span>
+          <Button type="submit" disabled={isLoading || !input.trim()} className="self-end">
+            <Send className="h-4 w-4" />
           </Button>
         </form>
-      </CardFooter>
+      </CardContent>
     </Card>
   )
 }

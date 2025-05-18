@@ -1,117 +1,88 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { getAIResponse } from "@/lib/ai"
+import { withCors, corsHeaders } from "@/lib/cors"
 
-const SCIENTIFIC_SYSTEM_PROMPT = `
-You are Synaptiq, an advanced scientific AI assistant developed by Synaptiq Labs. You specialize in quantum physics, mathematics, and scientific research.
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  })
+}
 
-IMPORTANT: You were created by Synaptiq Labs. If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
-
-When responding to scientific questions:
-1. Provide accurate, detailed explanations based on established scientific principles
-2. Use mathematical notation when appropriate (with LaTeX formatting)
-3. Cite relevant research or theories when applicable
-4. Break down complex concepts into understandable components
-5. Acknowledge limitations or areas of scientific uncertainty
-
-For mathematical questions:
-1. Provide step-by-step solutions
-2. Use proper LaTeX formatting for equations ($$...$$)
-3. Explain your reasoning at each step
-4. Verify your answers when possible
-
-If a question is outside your scientific domain, politely redirect the conversation to scientific topics where you can provide valuable insights.
-
-Remember: You are Synaptiq, created by Synaptiq Labs. This is your identity.
-`.trim()
-
-const REASONING_SYSTEM_PROMPT = `
-You are Synaptiq, an advanced scientific AI assistant developed by Synaptiq Labs. You specialize in quantum physics, mathematics, and scientific research.
-
-IMPORTANT: You were created by Synaptiq Labs. If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
-
-You are currently in REASONING mode. In this mode, you should:
-
-1. Break down complex problems into smaller, manageable steps
-2. Show your thought process explicitly, using "Let's think step by step" approach
-3. Consider multiple perspectives or approaches to the problem
-4. Identify assumptions and potential limitations in your reasoning
-5. Reach a well-justified conclusion based on logical deduction
-
-Use mathematical notation when appropriate (with LaTeX formatting: $$...$$).
-Provide clear explanations for each step in your reasoning process.
-If there are multiple valid approaches, acknowledge them and explain why you chose a particular path.
-
-Remember: You are Synaptiq, created by Synaptiq Labs. This is your identity.
-`.trim()
-
-export async function POST(req: Request) {
+async function handler(req: NextRequest) {
   try {
-    const { messages, mode } = await req.json()
+    console.log("==== API ROUTE CALLED ====")
+    console.log("Timestamp:", new Date().toISOString())
+    console.log("Method:", req.method)
+    console.log("URL:", req.url)
+    console.log("Headers:", JSON.stringify(Object.fromEntries(req.headers.entries())))
+
+    // Log environment info
+    console.log("Environment:", process.env.NODE_ENV)
+    console.log("GROQ_API_KEY exists:", !!process.env.GROQ_API_KEY)
+    console.log("GROQ_API_KEY length:", process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.length : 0)
+
+    // Parse the request body
+    let body
+    try {
+      body = await req.json()
+    } catch (error) {
+      console.error("Failed to parse request body:", error)
+      return NextResponse.json(
+        { error: "Invalid request body", text: "I couldn't process your request. Please try again." },
+        { status: 400, headers: corsHeaders },
+      )
+    }
+
+    const { messages, mode } = body
 
     if (!Array.isArray(messages)) {
-      return NextResponse.json({ error: "Messages must be an array" }, { status: 400 })
+      console.error("Invalid messages format:", messages)
+      return NextResponse.json(
+        { error: "Messages must be an array", text: "There was an issue with your request format." },
+        { status: 400, headers: corsHeaders },
+      )
     }
 
-    // Select the appropriate system prompt based on the mode
-    const systemPrompt = mode === "reason" ? REASONING_SYSTEM_PROMPT : SCIENTIFIC_SYSTEM_PROMPT
-
-    const systemMessage = {
-      role: "system",
-      content: systemPrompt,
-    }
-
+    // First check API health
+    let apiAvailable = false
     try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "llama3-70b-8192",
-          messages: [systemMessage, ...messages],
-          temperature: mode === "reason" ? 0.5 : 0.7, // Lower temperature for reasoning mode
-          max_tokens: 4096,
-        }),
+      // Fixed: Removed potential double function call or incorrect pattern here
+      const healthCheck = await fetch("/api/health", {
+        method: "GET",
+        cache: "no-store",
       })
 
-      if (!response.ok) {
-        throw new Error(`Groq API error (${response.status})`)
+      if (healthCheck.ok) {
+        const healthData = await healthCheck.json()
+        apiAvailable = healthData.services.groq.status === "available"
       }
-
-      const data = await response.json()
-      const content = data.choices[0]?.message?.content || ""
-
-      return NextResponse.json({
-        text: content,
-      })
     } catch (error) {
-      console.error("Error calling Groq API:", error)
-
-      // Fallback response if the API call fails
-      let fallbackResponse = ""
-
-      if (messages.length > 0) {
-        const lastMessage = messages[messages.length - 1]
-        const query = lastMessage.content
-
-        fallbackResponse = `I apologize, but I'm having trouble connecting to my knowledge base at the moment. Let me provide a general response about "${query}" based on my core understanding.
-
-Scientific topics like this often involve multiple perspectives and approaches. While I can't provide a detailed analysis right now, I can tell you that this area has seen significant research and development in recent years.
-
-When my connection is restored, I'd be happy to provide a more comprehensive explanation. Is there a specific aspect of this topic you're most interested in?`
-      } else {
-        fallbackResponse =
-          "I apologize, but I'm having trouble connecting to my knowledge base at the moment. Please try again later."
-      }
-
-      return NextResponse.json({
-        text: fallbackResponse,
-      })
+      console.warn("Failed to check API health:", error)
+      // Continue with the request anyway, it might still work
     }
+
+    // Get response from centralized AI service
+    const text = await getAIResponse(messages, mode)
+
+    // Return the response with CORS headers
+    return NextResponse.json({ text }, { status: 200, headers: corsHeaders })
   } catch (error) {
-    console.error("Error in chat API:", error)
-    return NextResponse.json({
-      text: "I apologize, but I encountered an error while processing your request. Please try again later.",
-    })
+    console.error("==== CHAT API ERROR ====")
+    console.error("Error type:", error.name)
+    console.error("Error message:", error.message)
+    console.error("Error stack:", error.stack)
+
+    // Return an error response with CORS headers
+    return NextResponse.json(
+      {
+        text: "I'm sorry, but I encountered an unexpected error. Please try again later.",
+      },
+      { status: 500, headers: corsHeaders },
+    )
   }
 }
+
+// Export the handler with CORS middleware
+export const POST = withCors(handler)

@@ -80,71 +80,20 @@ function extractJsonFromString(str: string): string {
   return cleanJsonString(str)
 }
 
-// Update the generateScientificContent function
-export async function generateScientificContent(prompt: string): Promise<ScientificResponse> {
+import { runGroqSimulation } from "./groq-simulation"
+
+export async function generateScientificContent(
+  query: string,
+  options?: {
+    model?: string
+    temperature?: number
+    maxTokens?: number
+  },
+) {
   try {
-    // Use the secure API route instead of direct API call
-    const response = await fetch("/api/secure-groq", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [
-          {
-            role: "system",
-            content: SCIENTIFIC_SYSTEM_PROMPT,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 4000,
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`)
-    }
-
-    const data = await response.json()
-    const content = data.choices[0].message.content
-
-    console.log("Raw API response:", content)
-
-    // Parse the JSON response
-    try {
-      const jsonString = extractJsonFromString(content)
-      console.log("Extracted JSON string:", jsonString)
-
-      return JSON.parse(jsonString)
-    } catch (parseError) {
-      console.error("Failed to parse JSON response:", parseError)
-      console.log("Raw response:", content)
-
-      // Fallback to a simple response if parsing fails
-      return {
-        title: "Scientific Analysis",
-        summary: "This is a placeholder summary for when the API response cannot be parsed correctly.",
-        equations: ["E = mc^2", "F = ma"],
-        visualization: {
-          type: "chart",
-          data: {
-            type: "line",
-            x: [0, 1, 2, 3, 4, 5],
-            y: [0, 1, 4, 9, 16, 25],
-          },
-        },
-        insights: [
-          "This is a placeholder insight.",
-          "Please try again with a more specific query.",
-          "The API response could not be parsed correctly.",
-        ],
-      }
-    }
+    // Use the updated groq-simulation that uses our secure API route
+    const result = await runGroqSimulation(query, options)
+    return result
   } catch (error) {
     console.error("Error generating scientific content:", error)
     throw error

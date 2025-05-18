@@ -38,6 +38,71 @@ export function ChatInterface() {
     }
   }, [chatState.messages, chatState.isGuest, showBetaModal, showLoginModal, showLimitModal, setShowLimitModal])
 
+  const updatedSendMessage = async (message: string) => {
+    const mode = chatState.interactionMode
+    const messages = [...chatState.messages, { role: "user", content: message }]
+
+    try {
+      console.log("Sending chat request to API")
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages, mode }),
+      })
+
+      console.log("API response status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("API error:", response.status, errorText)
+        throw new Error(`API error: ${response.status} - ${errorText}`)
+      }
+
+      const data = await response.json()
+      console.log("API response received successfully")
+
+      // Process data...
+    } catch (error) {
+      console.error("Chat request failed:", error)
+      // Handle error in UI...
+    }
+  }
+
+  const testApiConnection = async () => {
+    try {
+      console.log("Testing API connection...")
+
+      // Test the simple API endpoint
+      const testResponse = await fetch("/api/test")
+      console.log("Test API status:", testResponse.status)
+      const testData = await testResponse.json()
+      console.log("Test API response:", testData)
+
+      // Test the health check endpoint
+      const healthResponse = await fetch("/api/health-check")
+      console.log("Health check status:", healthResponse.status)
+      const healthData = await healthResponse.json()
+      console.log("Health check response:", healthData)
+
+      // Test the environment debug endpoint
+      const envResponse = await fetch("/api/env-debug")
+      console.log("Env debug status:", envResponse.status)
+      const envData = await envResponse.json()
+      console.log("Env debug response:", envData)
+
+      // Add a button or trigger this function for testing
+    } catch (error) {
+      console.error("API test failed:", error)
+    }
+  }
+
+  // You can call this function on component mount for testing:
+  useEffect(() => {
+    testApiConnection()
+  }, [])
+
   return (
     <div className="flex h-screen bg-black text-white">
       {/* Sidebar */}
@@ -70,7 +135,7 @@ export function ChatInterface() {
           </div>
 
           <ChatInput
-            onSendMessage={sendMessage}
+            onSendMessage={updatedSendMessage}
             disabled={chatState.isLoading || (chatState.isGuest && chatState.queriesRemaining <= 0)}
           />
         </div>

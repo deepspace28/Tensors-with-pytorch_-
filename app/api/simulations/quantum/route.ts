@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
 import { getMockQuantumData } from "@/lib/mock-quantum-data"
+import { executeQuantumSimulation } from "@/lib/engines/quantum_executor"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { prompt, backend = "qiskit" } = body
+    const { prompt, parameters = {}, backend = "qiskit" } = body
 
     if (!prompt) {
       return NextResponse.json({ error: "Missing required parameter: prompt" }, { status: 400 })
@@ -13,115 +14,134 @@ export async function POST(request: Request) {
 
     logger.info(`Received quantum simulation request: ${prompt}`)
 
-    // Get the API key from environment variables - use server-side only
-    const apiKey = process.env.GROQ_API_KEY
-
-    if (!apiKey) {
-      logger.warn("GROQ API key is not defined, using mock data")
-      return NextResponse.json(getMockQuantumData(prompt))
-    }
-
-    // System prompt for quantum simulations - explicitly requesting clean, textbook-style math
-    const systemPrompt = `You are Synaptiq's quantum physics expert with deep knowledge of quantum mechanics and quantum computing.
-    
-    When given a quantum simulation request, provide a comprehensive analysis including:
-    
-    1. A detailed explanation of the quantum system and its significance
-    2. The quantum circuit representation in ASCII art with clear labels
-    3. Mathematical equations using clean, textbook-style LaTeX notation
-    4. Simulation results with precise probabilities and measurements
-    5. Visualization data for plotting results
-    6. Insights into the quantum phenomena being demonstrated
-    
-    DO NOT format your response as JSON. Instead, use markdown with clear sections:
-    
-    # Summary
-    Brief summary of the quantum system and simulation results
-    
-    # Equations
-    - LaTeX equation 1
-    - LaTeX equation 2
-    
-    # Results
-    Detailed measurement results and probabilities
-    
-    # Insight
-    Detailed explanation of the quantum behavior and its significance
-    
-    For Schrödinger's cat simulations, explain the quantum superposition principle and how it applies to the thought experiment.
-    
-    For entanglement simulations, explain Bell's inequality and non-locality.
-    
-    For quantum algorithms, explain the computational advantage over classical algorithms.
-    
-    IMPORTANT: Format all equations in clean, textbook-style LaTeX without unnecessary decorations or colors.
-    Use standard notation conventions from quantum mechanics textbooks.`
-
-    logger.info("Calling Groq API with system prompt and user query")
-
     try {
-      // Call the Groq API
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "llama3-70b-8192",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: `Simulate the following quantum system: ${prompt}. Use ${backend} as the backend.`,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 4000,
-          // Removed response_format to get markdown instead of JSON
-        }),
+      // Use the Python Qiskit executor
+      const result = await executeQuantumSimulation(prompt, {
+        ...parameters,
+        backend,
       })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error(`Groq API request failed with status ${response.status}: ${errorText}`)
-
-        // Fall back to mock data if API fails
-        logger.info("Falling back to mock data due to API error")
-        return NextResponse.json(getMockQuantumData(prompt))
-      }
-
-      const data = await response.json()
-      logger.info("Received response from Groq API")
-
-      if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-        logger.error("Invalid response format from Groq API", data)
-
-        // Fall back to mock data if response format is invalid
-        logger.info("Falling back to mock data due to invalid response format")
-        return NextResponse.json(getMockQuantumData(prompt))
-      }
-
-      const content = data.choices[0].message.content
-      logger.info("Successfully received content from Groq API")
-
-      // Parse the markdown content into structured data
-      const structuredData = parseMarkdownContent(content, prompt)
 
       // Return the structured data
       return NextResponse.json({
-        ...structuredData,
-        rawContent: content, // Include the raw content for debugging
+        summary: result.summary,
+        equations: result.equations || [],
+        insight: result.insight || "",
+        chart: result.chart,
+        circuit: result.circuit,
       })
-    } catch (apiError) {
-      logger.error(`Error calling Groq API: ${apiError.message}`, apiError)
+    } catch (error) {
+      logger.error(`Error executing quantum simulation: ${error instanceof Error ? error.message : String(error)}`)
 
-      // Fall back to mock data if API call fails
-      logger.info("Falling back to mock data due to API call error")
-      return NextResponse.json(getMockQuantumData(prompt))
+      // Fall back to the Groq API if Python execution fails
+      const apiKey = process.env.GROQ_API_KEY
+
+      if (!apiKey) {
+        logger.warn("GROQ API key is not defined, using mock data")
+        return NextResponse.json(getMockQuantumData(prompt))
+      }
+
+      // System prompt for quantum simulations - explicitly requesting clean, textbook-style math
+      const systemPrompt = `You are Synaptiq's quantum physics expert with deep knowledge of quantum mechanics and quantum computing.
+      
+      When given a quantum simulation request, provide a comprehensive analysis including:
+      
+      1. A detailed explanation of the quantum system and its significance
+      2. The quantum circuit representation in ASCII art with clear labels
+      3. Mathematical equations using clean, textbook-style LaTeX notation
+      4. Simulation results with precise probabilities and measurements
+      5. Visualization data for plotting results
+      6. Insights into the quantum phenomena being demonstrated
+      
+      DO NOT format your response as JSON. Instead, use markdown with clear sections:
+      
+      # Summary
+      Brief summary of the quantum system and simulation results
+      
+      # Equations
+      - LaTeX equation 1
+      - LaTeX equation 2
+      
+      # Results
+      Detailed measurement results and probabilities
+      
+      # Insight
+      Detailed explanation of the quantum behavior and its significance
+      
+      For Schrödinger's cat simulations, explain the quantum superposition principle and how it applies to the thought experiment.
+      
+      For entanglement simulations, explain Bell's inequality and non-locality.
+      
+      For quantum algorithms, explain the computational advantage over classical algorithms.
+      
+      IMPORTANT: Format all equations in clean, textbook-style LaTeX without unnecessary decorations or colors.
+      Use standard notation conventions from quantum mechanics textbooks.`
+
+      logger.info("Calling Groq API with system prompt and user query")
+
+      try {
+        // Call the Groq API
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "llama3-70b-8192",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt,
+              },
+              {
+                role: "user",
+                content: `Simulate the following quantum system: ${prompt}. Use ${backend} as the backend.`,
+              },
+            ],
+            temperature: 0.5,
+            max_tokens: 4000,
+            // Removed response_format to get markdown instead of JSON
+          }),
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          logger.error(`Groq API request failed with status ${response.status}: ${errorText}`)
+
+          // Fall back to mock data if API fails
+          logger.info("Falling back to mock data due to API error")
+          return NextResponse.json(getMockQuantumData(prompt))
+        }
+
+        const data = await response.json()
+        logger.info("Received response from Groq API")
+
+        if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
+          logger.error("Invalid response format from Groq API", data)
+
+          // Fall back to mock data if response format is invalid
+          logger.info("Falling back to mock data due to invalid response format")
+          return NextResponse.json(getMockQuantumData(prompt))
+        }
+
+        const content = data.choices[0].message.content
+        logger.info("Successfully received content from Groq API")
+
+        // Parse the markdown content into structured data
+        const structuredData = parseMarkdownContent(content, prompt)
+
+        // Return the structured data
+        return NextResponse.json({
+          ...structuredData,
+          rawContent: content, // Include the raw content for debugging
+        })
+      } catch (apiError) {
+        logger.error(`Error calling Groq API: ${apiError.message}`, apiError)
+
+        // Fall back to mock data if API call fails
+        logger.info("Falling back to mock data due to API call error")
+        return NextResponse.json(getMockQuantumData(prompt))
+      }
     }
   } catch (error) {
     logger.error(`Error in quantum simulation: ${error.message}`, error)

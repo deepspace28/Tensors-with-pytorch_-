@@ -18,28 +18,29 @@ export default function GHZStatePage() {
             </CardHeader>
             <CardContent className="prose dark:prose-invert max-w-none">
               <p>
-                The GHZ state is a notable multi-qubit entangled state that demonstrates quantum non-locality beyond what Bell states show.
-                It is defined as:
+                The GHZ state is a notable multi-qubit entangled state that demonstrates quantum non-locality beyond
+                what Bell states show. It is defined as:
               </p>
               <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                $|\text{GHZ}\rangle = \frac{1}{\sqrt{2}}(|00...0\rangle + |11...1\rangle)$
+                {"$|\\text{GHZ}\\rangle = \\frac{1}{\\sqrt{2}}(|00...0\\rangle + |11...1\\rangle)$"}
               </div>
               <p>
-                This simulation demonstrates the creation and measurement of a GHZ state using quantum gates.
-                The results show the perfect correlation between qubits that is characteristic of this entangled state.
+                This simulation demonstrates the creation and measurement of a GHZ state using quantum gates. The
+                results show the perfect correlation between qubits that is characteristic of this entangled state.
               </p>
             </CardContent>
           </Card>
 
           <GHZStateSimulation qubits={3} shots={1024} />
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Code Implementation</CardTitle>
             </CardHeader>
             <CardContent>
               <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md overflow-x-auto">
-                <code className="language-python">{`import numpy as np
+                <code className="language-python">
+                  {`import numpy as np
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.visualization import plot_histogram, plot_bloch_multivector
 from qiskit.quantum_info import Statevector

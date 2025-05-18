@@ -41,21 +41,17 @@ Quantum mechanics is a fundamental theory in physics that describes nature at th
 
 The Schrödinger equation is central to quantum mechanics:
 
-\`\`\`math
-i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\hat{H} \\Psi(\\mathbf{r}, t)
-\`\`\`
+$$i\\hbar \\frac{\\partial}{\\partial t} \\Psi(\\mathbf{r}, t) = \\hat{H} \\Psi(\\mathbf{r}, t)$$
 
 Where:
-- \$$ \\Psi(\\mathbf{r}, t) \$$ is the wave function
-- \$$ i \$$ is the imaginary unit
-- \$$ \\hbar \$$ is the reduced Planck constant
-- \$$ \\hat{H} \$$ is the Hamiltonian operator
+- $\\Psi(\\mathbf{r}, t)$ is the wave function
+- $i$ is the imaginary unit
+- $\\hbar$ is the reduced Planck constant
+- $\\hat{H}$ is the Hamiltonian operator
 
 The uncertainty principle, formulated by Werner Heisenberg, states that:
 
-\`\`\`math
-\\Delta x \\Delta p \\geq \\frac{\\hbar}{2}
-\`\`\`
+$$\\Delta x \\Delta p \\geq \\frac{\\hbar}{2}$$
 
 This means we cannot simultaneously know both the position and momentum of a particle with arbitrary precision.
   `,
@@ -66,20 +62,16 @@ Einstein's theory of relativity consists of two physical theories: special relat
 
 The famous mass-energy equivalence formula:
 
-\`\`\`math
-E = mc^2
-\`\`\`
+$$E = mc^2$$
 
 Where:
-- \$$ E \$$ is energy
-- \$$ m \$$ is mass
-- \$$ c \$$ is the speed of light in vacuum
+- $E$ is energy
+- $m$ is mass
+- $c$ is the speed of light in vacuum
 
 In general relativity, the Einstein field equations are:
 
-\`\`\`math
-G_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}
-\`\`\`
+$$G_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}$$
 
 These equations describe how the curvature of spacetime is related to the energy and momentum of matter and radiation.
   `,
@@ -88,24 +80,20 @@ These equations describe how the curvature of spacetime is related to the energy
 
 Mathematics is the study of numbers, quantity, structure, space, and change.
 
-The quadratic formula for solving equations of the form \$$ ax^2 + bx + c = 0 \$$ is:
+The quadratic formula for solving equations of the form $ax^2 + bx + c = 0$ is:
 
-\`\`\`math
-x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
-\`\`\`
+$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
 
 Euler's identity is considered one of the most beautiful equations in mathematics:
 
-\`\`\`math
-e^{i\\pi} + 1 = 0
-\`\`\`
+$$e^{i\\pi} + 1 = 0$$
 
 It connects five fundamental mathematical constants:
-- \$$ e \$$ (Euler's number)
-- \$$ i \$$ (imaginary unit)
-- \$$ \\pi \$$ (pi)
-- \$$ 1 \$$ (multiplicative identity)
-- \$$ 0 \$$ (additive identity)
+- $e$ (Euler's number)
+- $i$ (imaginary unit)
+- $\\pi$ (pi)
+- $1$ (multiplicative identity)
+- $0$ (additive identity)
   `,
   thermodynamics: `
 ## Thermodynamics
@@ -114,25 +102,21 @@ Thermodynamics is the branch of physics that deals with heat, work, and temperat
 
 The first law of thermodynamics states that energy cannot be created or destroyed, only transformed:
 
-\`\`\`math
-\\Delta U = Q - W
-\`\`\`
+$$\\Delta U = Q - W$$
 
 Where:
-- \$$ \\Delta U \$$ is the change in internal energy
-- \$$ Q \$$ is the heat added to the system
-- \$$ W \$$ is the work done by the system
+- $\\Delta U$ is the change in internal energy
+- $Q$ is the heat added to the system
+- $W$ is the work done by the system
 
 The entropy formula is:
 
-\`\`\`math
-S = k_B \\ln W
-\`\`\`
+$$S = k_B \\ln W$$
 
 Where:
-- \$$ S \$$ is entropy
-- \$$ k_B \$$ is Boltzmann's constant
-- \$$ W \$$ is the number of microstates
+- $S$ is entropy
+- $k_B$ is Boltzmann's constant
+- $W$ is the number of microstates
   `,
   complex: `
 ## Complex Mathematical Equations
@@ -143,68 +127,54 @@ Here are some complex mathematical equations that demonstrate the LaTeX renderin
 
 Maxwell's equations in differential form:
 
-\`\`\`math
-\\begin{align}
+$$\\begin{align}
 \\nabla \\cdot \\vec{E} &= \\frac{\\rho}{\\varepsilon_0} \\\\
 \\nabla \\cdot \\vec{B} &= 0 \\\\
 \\nabla \\times \\vec{E} &= -\\frac{\\partial \\vec{B}}{\\partial t} \\\\
 \\nabla \\times \\vec{B} &= \\mu_0\\vec{J} + \\mu_0\\varepsilon_0\\frac{\\partial \\vec{E}}{\\partial t}
-\\end{align}
-\`\`\`
+\\end{align}$$
 
 ### Navier-Stokes Equation
 
 The Navier-Stokes equation for incompressible flow:
 
-\`\`\`math
-\\rho \\left( \\frac{\\partial \\vec{v}}{\\partial t} + \\vec{v} \\cdot \\nabla \\vec{v} \\right) = -\\nabla p + \\mu \\nabla^2 \\vec{v} + \\vec{f}
-\`\`\`
+$$\\rho \\left( \\frac{\\partial \\vec{v}}{\\partial t} + \\vec{v} \\cdot \\nabla \\vec{v} \\right) = -\\nabla p + \\mu \\nabla^2 \\vec{v} + \\vec{f}$$
 
 ### Fourier Transform
 
 The Fourier transform pair:
 
-\`\`\`math
-\\begin{align}
+$$\\begin{align}
 F(\\omega) &= \\int_{-\\infty}^{\\infty} f(t) e^{-i\\omega t} \\, dt \\\\
 f(t) &= \\frac{1}{2\\pi} \\int_{-\\infty}^{\\infty} F(\\omega) e^{i\\omega t} \\, d\\omega
-\\end{align}
-\`\`\`
+\\end{align}$$
 
 ### Cauchy-Riemann Equations
 
 For a complex function $f(z) = u(x,y) + iv(x,y)$ to be analytic, it must satisfy:
 
-\`\`\`math
-\\begin{align}
+$$\\begin{align}
 \\frac{\\partial u}{\\partial x} &= \\frac{\\partial v}{\\partial y} \\\\
 \\frac{\\partial u}{\\partial y} &= -\\frac{\\partial v}{\\partial x}
-\\end{align}
-\`\`\`
+\\end{align}$$
 
 ### Einstein Field Equations
 
 The full Einstein field equations with cosmological constant:
 
-\`\`\`math
-R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}
-\`\`\`
+$$R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}$$
 
 ### Schrödinger Equation
 
 The time-dependent Schrödinger equation:
 
-\`\`\`math
-i\\hbar \\frac{\\partial}{\\partial t}\\Psi(\\mathbf{r},t) = \\left [ -\\frac{\\hbar^2}{2m}\\nabla^2 + V(\\mathbf{r},t)\\right ] \\Psi(\\mathbf{r},t)
-\`\`\`
+$$i\\hbar \\frac{\\partial}{\\partial t}\\Psi(\\mathbf{r},t) = \\left [ -\\frac{\\hbar^2}{2m}\\nabla^2 + V(\\mathbf{r},t)\\right ] \\Psi(\\mathbf{r},t)$$
 
 ### Dirac Equation
 
 The Dirac equation in covariant form:
 
-\`\`\`math
-(i\\gamma^\\mu \\partial_\\mu - m)\\psi = 0
-\`\`\`
+$$(i\\gamma^\\mu \\partial_\\mu - m)\\psi = 0$$
 
 Where $\\gamma^\\mu$ are the Dirac gamma matrices.
   `,
@@ -352,7 +322,9 @@ export function DemoChat() {
                   {message.role === "user" ? (
                     <p className="text-sm">{message.content}</p>
                   ) : (
-                    <MarkdownRenderer content={message.content} />
+                    <div className="markdown-content">
+                      <MarkdownRenderer content={message.content} />
+                    </div>
                   )}
                 </div>
               </div>

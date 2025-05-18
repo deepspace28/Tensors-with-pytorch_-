@@ -101,17 +101,17 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
               <div className="prose dark:prose-invert max-w-none">
                 <h3>Initial State</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$|\psi_0\rangle = |{results ? "0".repeat(results.parameters.qubits) : "000"}\rangle$$
+                  $$|\psi_0\rangle = |{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle$$
                 </div>
 
                 <h3>After Hadamard Gate</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $|\psi_1\rangle = \frac{1}{\sqrt{2}}(|0\rangle + |1\rangle) \otimes |{results ? "0".repeat(results.parameters.qubits - 1) : "00"}\rangle = \frac{1}{\sqrt{2}}(|{results ? "0".repeat(results.parameters.qubits) : "000"}\rangle + |1{results ? "0".repeat(results.parameters.qubits - 1) : "00"}\rangle)$
+                  $|\psi_1\rangle = \frac{1}{\sqrt{2}}(|0\rangle + |1\rangle) \otimes |{results ? `0`.repeat(results.parameters.qubits - 1) : `00`}\rangle = \frac{1}{\sqrt{2}}(|{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle + |1{results ? `0`.repeat(results.parameters.qubits - 1) : `00`}\rangle)$
                 </div>
 
                 <h3>After CNOT Gates</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$|\psi_{\text{final}}\rangle = \frac{1}{\sqrt{2}}(|{results ? "0".repeat(results.parameters.qubits) : "000"}\rangle + |{results ? "1".repeat(results.parameters.qubits) : "111"}\rangle)$$
+                  $$|\psi_{\text{final}}\rangle = \frac{1}{\sqrt{2}}(|{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle + |{results ? `1`.repeat(results.parameters.qubits) : `111`}\rangle)$$
                 </div>
 
                 <h3>Matrix Representations</h3>

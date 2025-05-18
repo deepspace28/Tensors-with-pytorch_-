@@ -1,2 +1,11 @@
-// Remove the NEXT_PUBLIC_ prefix from the environment variable
-export const GROQ_API_KEY = process.env.GROQ_API_KEY || ""
+import { z } from "zod"
+
+const envSchema = z.object({
+  PYTHON_API_URL: z.string().url().default("http://localhost:8000/execute"),
+  PYTHON_API_KEY: z.string().min(1),
+})
+
+export const env = envSchema.parse({
+  PYTHON_API_URL: process.env.PYTHON_API_URL,
+  PYTHON_API_KEY: process.env.PYTHON_API_KEY,
+})

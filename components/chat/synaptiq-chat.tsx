@@ -2,7 +2,20 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Send, Mic, Plus, Search, Sparkles, Lightbulb, Beaker, Trash2, Edit, MoreVertical } from "lucide-react"
+import {
+  Send,
+  Mic,
+  Plus,
+  Search,
+  Sparkles,
+  Lightbulb,
+  Beaker,
+  Trash2,
+  Edit,
+  MoreVertical,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
@@ -14,8 +27,19 @@ import { type Conversation, ConversationStorage, type Message } from "@/lib/conv
 import { v4 as uuidv4 } from "uuid"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 type ChatMode = "normal" | "search" | "reason"
+
+interface ApiStatus {
+  status: "ok" | "error" | "unknown"
+  services: {
+    groq: {
+      configured: boolean
+      status: string
+    }
+  }
+}
 
 export function SynaptiqChat() {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -26,11 +50,87 @@ export function SynaptiqChat() {
   const [newTitle, setNewTitle] = useState("")
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [chatMode, setChatMode] = useState<ChatMode>("normal")
+  const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const [showOfflineMessage, setShowOfflineMessage] = useState(false)
+  const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null)
+  const [isCheckingApi, setIsCheckingApi] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
+
+  // Check network status
+  useEffect(() => {
+    const handleOnline = () => {
+      setShowOfflineMessage(false)
+      checkApiHealth() // Check API health when coming back online
+    }
+    const handleOffline = () => setShowOfflineMessage(true)
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+
+    // Initial check
+    setShowOfflineMessage(!navigator.onLine)
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+    }
+  }, [])
+
+  // Check API health on mount and periodically
+  useEffect(() => {
+    checkApiHealth()
+
+    // Check API health every 5 minutes
+    const intervalId = setInterval(checkApiHealth, 5 * 60 * 1000)
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // Function to check API health
+  const checkApiHealth = async () => {
+    if (!navigator.onLine) return
+
+    setIsCheckingApi(true)
+    try {
+      const response = await fetch("/api/health", {
+        method: "GET",
+        cache: "no-store",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setApiStatus(data)
+      } else {
+        setApiStatus({
+          status: "error",
+          services: {
+            groq: {
+              configured: false,
+              status: "unavailable",
+            },
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Error checking API health:", error)
+      setApiStatus({
+        status: "error",
+        services: {
+          groq: {
+            configured: false,
+            status: "unavailable",
+          },
+        },
+      })
+    } finally {
+      setIsCheckingApi(false)
+    }
+  }
 
   // Load conversations on mount
   useEffect(() => {
@@ -75,6 +175,7 @@ export function SynaptiqChat() {
     setCurrentConversation(newConv)
     setInput("")
     setChatMode("normal")
+    setError(null)
   }
 
   const switchConversation = (id: string) => {
@@ -83,6 +184,7 @@ export function SynaptiqChat() {
       setCurrentConversation(conversation)
       setInput("")
       setChatMode("normal")
+      setError(null)
     }
   }
 
@@ -101,6 +203,7 @@ export function SynaptiqChat() {
         setCurrentConversation(newConv)
       }
       setChatMode("normal")
+      setError(null)
     }
 
     setDeleteConfirmId(null)
@@ -123,6 +226,9 @@ export function SynaptiqChat() {
     e.preventDefault()
     if (!input.trim() || isLoading || !currentConversation) return
 
+    // Reset any previous errors
+    setError(null)
+
     const userMessage: Message = {
       id: uuidv4(),
       role: "user",
@@ -144,9 +250,35 @@ export function SynaptiqChat() {
     setIsLoading(true)
 
     try {
+      // Check if we're offline
+      if (!navigator.onLine) {
+        throw new Error("You appear to be offline. Please check your internet connection and try again.")
+      }
+
       // Choose the appropriate API endpoint based on the chat mode
       const endpoint = chatMode === "search" ? "/api/search" : "/api/chat"
 
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
+      // First, check API health before making the request
+      const healthCheck = await fetch("/api/health", {
+        method: "GET",
+        cache: "no-store",
+      }).catch(() => null)
+
+      let apiHealthOk = false
+
+      if (healthCheck && healthCheck.ok) {
+        const healthData = await healthCheck.json()
+        apiHealthOk = healthData.services.groq.status === "available"
+
+        if (!apiHealthOk) {
+          console.warn("API health check failed before chat request:", healthData)
+        }
+      }
+
+      // Proceed with the chat request even if health check failed (might still work)
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -157,28 +289,48 @@ export function SynaptiqChat() {
           mode: chatMode,
           query: userMessage.content, // Send the raw query for search mode
         }),
+        signal: controller.signal,
+        cache: "no-store", // Prevent caching
       })
 
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch response from ${endpoint}`)
+        const errorText = await response.text().catch(() => "Unknown error")
+        console.error(`Server returned ${response.status}: ${errorText}`)
+        throw new Error(`Server returned ${response.status}: ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("Response data:", data) // Debug log
 
       // If we have an error message in the response, handle it
       if (data.error) {
         throw new Error(data.error)
       }
 
-      // If we don't have a text response, handle the error
-      if (!data.text) {
-        throw new Error("No response text received")
+      let responseText = ""
+
+      // Handle different response structures
+      if (data.text) {
+        responseText = data.text
+      } else if (data.choices && data.choices[0] && data.choices[0].message) {
+        responseText = data.choices[0].message.content
+      } else if (data.content) {
+        responseText = data.content
+      } else {
+        // Fallback if no expected response format is found
+        console.error("Unexpected API response structure:", data)
+        responseText = "I received your message, but had trouble processing it. Please try again."
       }
+
+      // Reset retry count on successful response
+      setRetryCount(0)
 
       const assistantMessage: Message = {
         id: uuidv4(),
         role: "assistant",
-        content: data.text,
+        content: responseText,
         timestamp: new Date(),
       }
 
@@ -191,29 +343,52 @@ export function SynaptiqChat() {
 
       // Refresh conversations list
       setConversations(ConversationStorage.getAll())
+
+      // Check API health after successful response
+      checkApiHealth()
     } catch (error) {
-      console.error("Error:", error)
+      console.error("Chat error:", error)
 
-      // Create a fallback response based on the mode
-      let errorMessage = "I apologize, but I encountered an error. Please try again later."
+      // Increment retry count
+      setRetryCount((prev) => prev + 1)
 
-      if (chatMode === "search") {
-        errorMessage =
-          "I apologize, but I encountered an error while searching the web. Let me answer based on my knowledge instead.\n\n" +
-          "Based on my training data, I can tell you that " +
-          userMessage.content
-      } else if (chatMode === "reason") {
-        errorMessage =
-          "I apologize, but I encountered an error while processing your request in reasoning mode. Let me provide a standard response instead.\n\n" +
-          "Regarding your question about " +
-          userMessage.content
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      setError(errorMessage)
+
+      // Create a fallback response based on the mode and retry count
+      let fallbackMessage = ""
+
+      if (retryCount >= 2) {
+        // After multiple retries, provide a more helpful message
+        fallbackMessage = `I apologize, but I'm still having trouble connecting to the server. This might be due to:
+        
+1. Server maintenance
+2. High traffic volume
+3. Network connectivity issues
+
+You can try:
+- Refreshing the page
+- Checking your internet connection
+- Trying again in a few minutes
+
+In the meantime, I can still try to help with basic questions using my core knowledge.`
+      } else {
+        fallbackMessage = `I apologize, but I encountered an error: ${errorMessage}. Please try again later.`
+
+        if (chatMode === "search") {
+          fallbackMessage +=
+            "\n\nI'm unable to search the web at the moment. Would you like me to answer based on my general knowledge instead?"
+        } else if (chatMode === "reason") {
+          fallbackMessage +=
+            "\n\nI'm unable to use reasoning mode at the moment. Would you like me to provide a standard response instead?"
+        }
       }
 
       // Add error message
       const errorResponseMessage: Message = {
         id: uuidv4(),
         role: "assistant",
-        content: errorMessage,
+        content: fallbackMessage,
         timestamp: new Date(),
       }
 
@@ -225,6 +400,9 @@ export function SynaptiqChat() {
 
       // Refresh conversations list
       setConversations(ConversationStorage.getAll())
+
+      // Check API health after error
+      checkApiHealth()
     } finally {
       setIsLoading(false)
     }
@@ -283,8 +461,48 @@ export function SynaptiqChat() {
             <ScientificLogo className="h-6 w-6 text-white" />
             <h1 className="text-lg font-medium">Synaptiq</h1>
           </div>
+
+          {/* API Status Indicator */}
+          {apiStatus && (
+            <div className="flex items-center">
+              <div
+                className={cn(
+                  "h-2 w-2 rounded-full mr-2",
+                  apiStatus.services.groq.status === "available" ? "bg-green-500" : "bg-red-500",
+                )}
+              ></div>
+              <span className="text-xs text-gray-400 mr-2">
+                {apiStatus.services.groq.status === "available" ? "API Online" : "API Issues"}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-gray-400 hover:text-white"
+                onClick={checkApiHealth}
+                disabled={isCheckingApi}
+              >
+                <RefreshCw className={cn("h-4 w-4", isCheckingApi && "animate-spin")} />
+              </Button>
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Offline warning */}
+      {showOfflineMessage && (
+        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
+          <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+          You are currently offline. Some features may be unavailable.
+        </div>
+      )}
+
+      {/* API Status warning */}
+      {apiStatus && apiStatus.services.groq.status !== "available" && !showOfflineMessage && (
+        <div className="bg-red-900/30 border-b border-red-800 p-2 text-center text-red-200 text-sm">
+          <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+          The AI service is currently experiencing issues. Responses may be limited.
+        </div>
+      )}
 
       {/* Main content */}
       <main className="flex-1 overflow-hidden flex">
@@ -586,6 +804,14 @@ export function SynaptiqChat() {
                 </div>
               </div>
             )}
+            {error && (
+              <div className="flex items-center justify-center p-2">
+                <Alert variant="destructive" className="bg-red-900/20 border border-red-800 text-red-300">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>Error: {error}</AlertDescription>
+                </Alert>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -718,3 +944,6 @@ export function SynaptiqChat() {
     </div>
   )
 }
+
+// Make sure to export the component as default as well
+export default SynaptiqChat

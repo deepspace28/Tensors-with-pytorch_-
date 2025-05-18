@@ -1,3 +1,7 @@
+// Remove NEXT_PUBLIC_GROQ_API_KEY from client-side code
+// Only use server-side GROQ_API_KEY in API routes
+
 export const env = {
-  // Keep other environment variables if any, but remove GROQ_API_KEY
+  // Other environment variables can stay here if needed
+  // But remove any sensitive keys that should not be exposed to the client
 }

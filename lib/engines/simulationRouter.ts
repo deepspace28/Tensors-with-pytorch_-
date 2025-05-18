@@ -1,12 +1,14 @@
 import { runQuantumSimulation } from "./quantumEngine"
 import { runPhysicsSimulation } from "./physicsEngine"
 import { runMathSimulation } from "./mathEngine"
+import { executeQuantumSimulation } from "./quantum_executor"
 import type {
   SimulationType,
   SimulationRequest,
   SimulationResponse,
   ScientificResultPayload,
 } from "../../types/simulation"
+import { logger } from "../logger"
 
 /**
  * Detects the type of simulation based on the prompt
@@ -163,7 +165,33 @@ export async function routeSimulation(request: SimulationRequest): Promise<Simul
     // Route to the appropriate engine
     switch (simulationType) {
       case "quantum":
-        result = await runQuantumSimulation(prompt, parameters)
+        try {
+          // Use the real Qiskit simulation
+          logger.info(`Running quantum simulation with Python Qiskit for prompt: ${prompt}`)
+          const qiskitResult = await executeQuantumSimulation(prompt, parameters)
+
+          // Convert the Qiskit result to the expected format
+          result = {
+            summary: qiskitResult.summary,
+            equations: qiskitResult.equations || [],
+            insight: qiskitResult.insight || "",
+            charts: qiskitResult.chart
+              ? [
+                  {
+                    title: "Quantum Measurement Results",
+                    labels: qiskitResult.chart.labels,
+                    values: qiskitResult.chart.values,
+                  },
+                ]
+              : undefined,
+          }
+        } catch (qiskitError) {
+          logger.error(
+            `Error in Qiskit simulation: ${qiskitError instanceof Error ? qiskitError.message : String(qiskitError)}`,
+          )
+          // Fall back to the mock simulation if Qiskit fails
+          result = await runQuantumSimulation(prompt, parameters)
+        }
         break
       case "physics":
         result = await runPhysicsSimulation(prompt, parameters)

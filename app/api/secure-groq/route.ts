@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { model, messages, temperature, max_tokens } = await request.json()
+    const { prompt, model, temperature, maxTokens } = await request.json()
 
-    // Use the server-side environment variable
+    // Use server-side environment variable
     const apiKey = process.env.GROQ_API_KEY
 
     if (!apiKey) {
-      throw new Error("GROQ API key is not defined")
+      return NextResponse.json({ error: "GROQ API key is not configured" }, { status: 500 })
     }
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -19,20 +19,24 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: model || "llama3-70b-8192",
-        messages,
-        temperature: temperature || 0.5,
-        max_tokens: max_tokens || 4000,
+        messages: [
+          { role: "system", content: "You are a helpful scientific assistant." },
+          { role: "user", content: prompt },
+        ],
+        temperature: temperature || 0.7,
+        max_tokens: maxTokens || 1024,
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`)
+      const errorData = await response.json()
+      return NextResponse.json({ error: "Error from GROQ API", details: errorData }, { status: response.status })
     }
 
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Error in secure GROQ API:", error)
-    return NextResponse.json({ error: "Failed to call GROQ API" }, { status: 500 })
+    console.error("Error in secure GROQ API route:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
