@@ -23,7 +23,6 @@ export async function GET() {
       NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL ? "Set" : "Not set",
       NEXT_PUBLIC_FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "Not set",
       NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ? "Set" : "Not set",
-      NEXT_PUBLIC_GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY ? "Set" : "Not set",
     },
   })
 }

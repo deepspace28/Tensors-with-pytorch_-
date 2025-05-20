@@ -8,9 +8,8 @@ export async function GET() {
     MONGODB_URI: !!serverEnv.MONGODB_URI,
     REDIS_URL: !!serverEnv.REDIS_URL,
     PYTHON_API_URL: !!serverEnv.PYTHON_API_URL,
-    // Include public variables
+    // Include public variables but not sensitive ones
     NEXT_PUBLIC_API_BASE_URL: !!process.env.NEXT_PUBLIC_API_BASE_URL,
-    NEXT_PUBLIC_GROQ_API_KEY: !!process.env.NEXT_PUBLIC_GROQ_API_KEY,
   }
 
   return NextResponse.json({

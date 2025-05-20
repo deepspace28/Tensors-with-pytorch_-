@@ -2,10 +2,16 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
-    // Only check if variables exist, don't expose actual values
+    // Only check if non-sensitive variables exist, don't expose actual values
+    // Never check for or expose API keys here
     const envStatus = {
-      GROQ_API_KEY: !!process.env.GROQ_API_KEY,
-      NEXT_PUBLIC_GROQ_API_KEY: !!process.env.NEXT_PUBLIC_GROQ_API_KEY,
+      // Only check if server-side variables exist, don't expose their values
+      hasServerKeys: {
+        GROQ_API_KEY: !!process.env.GROQ_API_KEY,
+        MONGODB_URI: !!process.env.MONGODB_URI,
+        REDIS_URL: !!process.env.REDIS_URL,
+      },
+      // Safe to expose these non-sensitive environment settings
       NODE_ENV: process.env.NODE_ENV,
       VERCEL_ENV: process.env.VERCEL_ENV,
     }

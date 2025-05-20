@@ -3,8 +3,8 @@ import { logger } from "@/lib/logger"
 
 export async function POST(request: Request) {
   try {
-    // Get the API key from environment variables
-    const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY
+    // Get the API key from environment variables - server-side only
+    const GROQ_API_KEY = process.env.GROQ_API_KEY
 
     if (!GROQ_API_KEY) {
       logger.error("GROQ_API_KEY is not configured")

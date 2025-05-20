@@ -33,34 +33,29 @@ export const ApiClient = {
     }
   },
 
-  // Direct Groq API access from client (using public API key)
-  async directGroqRequest(messages: any[], options: any = {}) {
-    if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY is not configured for client-side access")
-    }
-
+  // Use server API route instead of direct Groq API access
+  async getModelResponse(messages: any[], options: any = {}) {
     try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch(`${this.getBaseUrl()}/secure-groq`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: options.model || "llama3-70b-8192",
           messages,
+          model: options.model || "llama2-70b-4096",
           temperature: options.temperature || 0.7,
           max_tokens: options.maxTokens || 4096,
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`Groq API error: ${response.status}`)
+        throw new Error(`API error: ${response.status}`)
       }
 
       return await response.json()
     } catch (error) {
-      console.error("Error making direct Groq request:", error)
+      console.error("Error getting model response:", error)
       throw error
     }
   },

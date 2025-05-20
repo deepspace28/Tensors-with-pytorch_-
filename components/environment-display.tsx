@@ -28,13 +28,12 @@ export function EnvironmentDisplay() {
     }
   }
 
-  // Get existing environment variables
+  // Get existing environment variables - remove sensitive keys
   const existingEnvVars = {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "Not set",
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "Not set",
     NEXT_PUBLIC_FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "Not set",
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "Not set",
-    NEXT_PUBLIC_GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY ? "Set (hidden)" : "Not set",
   }
 
   return (

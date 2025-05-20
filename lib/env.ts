@@ -11,7 +11,6 @@ export const serverEnv = {
 
 // Client-side environment variables
 export const clientEnv = {
-  GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY || "",
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
   FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "",
@@ -59,16 +58,11 @@ export function isDemoMode() {
   return false
 }
 
-// Get API key with fallback
+// Get API key with fallback - only for server-side use
 export function getApiKey() {
-  // First try server-side key
+  // Only use server-side key
   if (serverEnv.GROQ_API_KEY) {
     return serverEnv.GROQ_API_KEY
-  }
-
-  // Then try client-side key
-  if (clientEnv.GROQ_API_KEY) {
-    return clientEnv.GROQ_API_KEY
   }
 
   // Return empty string if no key is available

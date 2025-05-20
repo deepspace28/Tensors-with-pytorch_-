@@ -101,28 +101,28 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
               <div className="prose dark:prose-invert max-w-none">
                 <h3>Initial State</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$|\psi_0\rangle = |{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle$$
+                  {`$$|\\psi_0\\rangle = |${results ? "0".repeat(results.parameters.qubits) : "000"}\\rangle$$`}
                 </div>
 
                 <h3>After Hadamard Gate</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $|\psi_1\rangle = \frac{1}{\sqrt{2}}(|0\rangle + |1\rangle) \otimes |{results ? `0`.repeat(results.parameters.qubits - 1) : `00`}\rangle = \frac{1}{\sqrt{2}}(|{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle + |1{results ? `0`.repeat(results.parameters.qubits - 1) : `00`}\rangle)$
+                  {`$|\\psi_1\\rangle = \\frac{1}{\\sqrt{2}}(|0\\rangle + |1\\rangle) \\otimes |${results ? "0".repeat(results.parameters.qubits - 1) : "00"}\\rangle = \\frac{1}{\\sqrt{2}}(|${results ? "0".repeat(results.parameters.qubits) : "000"}\\rangle + |1${results ? "0".repeat(results.parameters.qubits - 1) : "00"}\\rangle)$`}
                 </div>
 
                 <h3>After CNOT Gates</h3>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$|\psi_{\text{final}}\rangle = \frac{1}{\sqrt{2}}(|{results ? `0`.repeat(results.parameters.qubits) : `000`}\rangle + |{results ? `1`.repeat(results.parameters.qubits) : `111`}\rangle)$$
+                  {`$$|\\psi_{\\text{final}}\\rangle = \\frac{1}{\\sqrt{2}}(|${results ? "0".repeat(results.parameters.qubits) : "000"}\\rangle + |${results ? "1".repeat(results.parameters.qubits) : "111"}\\rangle)$$`}
                 </div>
 
                 <h3>Matrix Representations</h3>
                 <p>Hadamard gate:</p>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$H = \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}$$
+                  H = 1/√(2) * |1 1; 1 -1|
                 </div>
 
                 <p>CNOT gate:</p>
                 <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md text-center">
-                  $$CNOT = \begin{pmatrix} 1 & 0 & 0 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 1 \\ 0 & 0 & 1 & 0 \end{pmatrix}$$
+                  CNOT = |1 0 0 0; 0 1 0 0; 0 0 0 1; 0 0 1 0|
                 </div>
               </div>
             </TabsContent>
@@ -135,15 +135,14 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
                 </div>
 
                 <h3>Circuit Description</h3>
-                <p>
-                  This circuit creates a GHZ state with {results?.parameters.qubits || 3} qubits by:
-                </p>
+                <p>This circuit creates a GHZ state with {results?.parameters.qubits || 3} qubits by:</p>
                 <ol>
                   <li>Applying a Hadamard gate to the first qubit, creating a superposition</li>
                   <li>Applying CNOT gates from the first qubit to all other qubits, creating entanglement</li>
                 </ol>
                 <p>
-                  The resulting state is a maximally entangled state where all qubits are either all in state |0⟩ or all in state |1⟩.
+                  The resulting state is a maximally entangled state where all qubits are either all in state |0⟩ or all
+                  in state |1⟩.
                 </p>
               </div>
             </TabsContent>
@@ -155,19 +154,26 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Measurement</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                          Measurement
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Count</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Probability</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                          Probability
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {results && Object.entries(results.counts).map(([state, count]: [string, any]) => (
-                        <tr key={state}>
-                          <td className="px-6 py-4 whitespace-nowrap">{state}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{count}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{(Number(count) / results.parameters.shots).toFixed(4)}</td>
-                        </tr>
-                      ))}
+                      {results &&
+                        Object.entries(results.counts).map(([state, count]: [string, any]) => (
+                          <tr key={state}>
+                            <td className="px-6 py-4 whitespace-nowrap">{state}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">{count}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {(Number(count) / results.parameters.shots).toFixed(4)}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -182,25 +188,32 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
             <TabsContent value="insights" className="space-y-4">
               <div className="prose dark:prose-invert max-w-none">
                 <h3>Quantum Properties Demonstrated</h3>
-                <p>
-                  The GHZ state demonstrates several key quantum phenomena:
-                </p>
+                <p>The GHZ state demonstrates several key quantum phenomena:</p>
                 <ul>
-                  <li><strong>Multipartite Entanglement:</strong> The {results?.parameters.qubits || 3} qubits are entangled in a way that cannot be decomposed into simpler entangled states.</li>
-                  <li><strong>Quantum Non-locality:</strong> The GHZ state violates local realism in a stronger way than Bell states.</li>
-                  <li><strong>Perfect Correlation:</strong> Measuring any qubit immediately determines the state of all other qubits.</li>
+                  <li>
+                    <strong>Multipartite Entanglement:</strong> The {results?.parameters.qubits || 3} qubits are
+                    entangled in a way that cannot be decomposed into simpler entangled states.
+                  </li>
+                  <li>
+                    <strong>Quantum Non-locality:</strong> The GHZ state violates local realism in a stronger way than
+                    Bell states.
+                  </li>
+                  <li>
+                    <strong>Perfect Correlation:</strong> Measuring any qubit immediately determines the state of all
+                    other qubits.
+                  </li>
                 </ul>
 
                 <h3>Statistical Analysis</h3>
                 <p>
-                  The measurement results show approximately equal probabilities for the states |{results ? "0".repeat(results.parameters.qubits) : "000"}⟩ and |{results ? "1".repeat(results.parameters.qubits) : "111"}⟩, as predicted by quantum theory. 
-                  The absence of other measurement outcomes confirms the creation of the GHZ state.
+                  The measurement results show approximately equal probabilities for the states |
+                  {results ? "0".repeat(results.parameters.qubits) : "000"}⟩ and |
+                  {results ? "1".repeat(results.parameters.qubits) : "111"}⟩, as predicted by quantum theory. The
+                  absence of other measurement outcomes confirms the creation of the GHZ state.
                 </p>
 
                 <h3>Applications</h3>
-                <p>
-                  GHZ states are valuable resources for:
-                </p>
+                <p>GHZ states are valuable resources for:</p>
                 <ul>
                   <li>Quantum error correction</li>
                   <li>Quantum secret sharing</li>
@@ -220,8 +233,8 @@ export function GHZStateSimulation({ qubits = 3, shots = 1024 }: GHZStateSimulat
             parameters: results.parameters,
             results: {
               counts: results.counts,
-              statevector: results.statevector
-            }
+              statevector: results.statevector,
+            },
           }}
         />
       )}
