@@ -1,10 +1,7 @@
-// This file should not contain any sensitive environment variables
-// that should not be exposed to the client
+// Remove NEXT_PUBLIC_GROQ_API_KEY from client-side code
+// Only use server-side GROQ_API_KEY in API routes
 
 export const env = {
-  // Only include non-sensitive environment variables here
-  // For example:
-  // PUBLIC_FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG === 'true',
+  // Other environment variables can stay here if needed
+  // But remove any sensitive keys that should not be exposed to the client
 }
-
-// Remove all references to GROQ_API_KEY or any other sensitive keys

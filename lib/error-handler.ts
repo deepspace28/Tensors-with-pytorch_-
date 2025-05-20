@@ -1,48 +1,45 @@
-import { NextResponse } from "next/server"
+import type React from "react"
+/**
+ * Enhanced error handler for asset loading
+ * This utility helps manage asset loading errors and provides fallbacks
+ */
 
-export interface ApiError {
-  code: string
-  message: string
-  status: number
+// Function to handle image loading errors
+export function handleImageError(
+  event: React.SyntheticEvent<HTMLImageElement, Event>,
+  fallbackSrc = "/placeholder.svg",
+) {
+  const target = event.currentTarget
+
+  // Set fallback image
+  target.onerror = null // Prevent infinite error loop
+  target.src = fallbackSrc
+
+  // Log the error for debugging
+  console.warn(`Image failed to load, using fallback: ${fallbackSrc}`)
 }
 
-export const ApiErrors = {
-  RATE_LIMIT_EXCEEDED: {
-    code: "rate_limit_exceeded",
-    message: "Rate limit exceeded. Please try again later.",
-    status: 429,
-  },
-  UNAUTHORIZED: {
-    code: "unauthorized",
-    message: "Unauthorized. Please log in to continue.",
-    status: 401,
-  },
-  FORBIDDEN: {
-    code: "forbidden",
-    message: "Forbidden. You do not have permission to access this resource.",
-    status: 403,
-  },
-  NOT_FOUND: {
-    code: "not_found",
-    message: "Resource not found.",
-    status: 404,
-  },
-  INTERNAL_SERVER_ERROR: {
-    code: "internal_server_error",
-    message: "An internal server error occurred. Please try again later.",
-    status: 500,
-  },
-}
-
-export function handleApiError(error: unknown, defaultError = ApiErrors.INTERNAL_SERVER_ERROR) {
-  console.error("API Error:", error)
-
-  // If the error is already an ApiError, return it
-  if ((error as ApiError).code && (error as ApiError).status) {
-    const apiError = error as ApiError
-    return NextResponse.json({ error: apiError.code, message: apiError.message }, { status: apiError.status })
+// Function to create a safe image URL
+export function getSafeImageUrl(url: string, fallbackUrl = "/placeholder.svg") {
+  if (!url || url.includes("blob:") || url.includes("vusercontent.net")) {
+    // If URL is empty, a blob URL, or from vusercontent.net, use fallback
+    console.warn(`Potentially unsafe image URL detected: ${url}, using fallback`)
+    return fallbackUrl
   }
 
-  // Otherwise, return the default error
-  return NextResponse.json({ error: defaultError.code, message: defaultError.message }, { status: defaultError.status })
+  return url
+}
+
+// Function to safely load resources
+export async function safeLoadResource(url: string) {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to load resource: ${response.status} ${response.statusText}`)
+    }
+    return await response.text()
+  } catch (error) {
+    console.error(`Error loading resource from ${url}:`, error)
+    return null
+  }
 }

@@ -1,50 +1,94 @@
-/**
- * Simple rate limiter that doesn't use Redis
- */
-export class RateLimiter {
-  private limits: Map<string, { count: number; resetTime: number }> = new Map()
+import Redis from "ioredis"
+import { type NextRequest, NextResponse } from "next/server"
 
-  /**
-   * Check if a user has exceeded their rate limit
-   * @param userId User identifier
-   * @param limit Maximum number of requests
-   * @param windowMs Time window in milliseconds
-   * @returns Whether the user has exceeded their limit
-   */
-  async isRateLimited(userId: string, limit = 10, windowMs = 60000): Promise<boolean> {
-    const now = Date.now()
-    const userLimit = this.limits.get(userId)
+// Initialize Redis client
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379")
 
-    // If no existing limit or the window has expired, create a new limit
-    if (!userLimit || now > userLimit.resetTime) {
-      this.limits.set(userId, {
-        count: 1,
-        resetTime: now + windowMs,
-      })
-      return false
+interface RateLimitConfig {
+  limit: number
+  window: number // in seconds
+}
+
+// Different rate limits for different user types
+const rateLimits: Record<string, RateLimitConfig> = {
+  anonymous: { limit: 10, window: 60 * 60 }, // 10 requests per hour for anonymous users
+  free: { limit: 50, window: 60 * 60 }, // 50 requests per hour for free users
+  premium: { limit: 200, window: 60 * 60 }, // 200 requests per hour for premium users
+}
+
+export async function rateLimiter(
+  req: NextRequest,
+  userType: "anonymous" | "free" | "premium" = "anonymous",
+  userId = "anonymous",
+) {
+  const ip = req.headers.get("x-forwarded-for") || "unknown"
+  const key = `rate-limit:${userType}:${userId !== "anonymous" ? userId : ip}`
+
+  const config = rateLimits[userType]
+
+  try {
+    // Get current count
+    const current = await redis.get(key)
+    const currentCount = current ? Number.parseInt(current, 10) : 0
+
+    if (currentCount >= config.limit) {
+      return {
+        success: false,
+        limit: config.limit,
+        remaining: 0,
+        reset: await redis.ttl(key),
+      }
     }
 
-    // Increment the count
-    userLimit.count++
+    // Increment count
+    await redis.incr(key)
 
-    // Check if the user has exceeded their limit
-    return userLimit.count > limit
-  }
-
-  /**
-   * Get the number of requests remaining for a user
-   * @param userId User identifier
-   * @param limit Maximum number of requests
-   * @returns Number of requests remaining
-   */
-  async getRemainingRequests(userId: string, limit = 10): Promise<number> {
-    const userLimit = this.limits.get(userId)
-    if (!userLimit || Date.now() > userLimit.resetTime) {
-      return limit
+    // Set expiry if this is the first request in the window
+    if (currentCount === 0) {
+      await redis.expire(key, config.window)
     }
-    return Math.max(0, limit - userLimit.count)
+
+    // Get TTL
+    const ttl = await redis.ttl(key)
+
+    return {
+      success: true,
+      limit: config.limit,
+      remaining: config.limit - (currentCount + 1),
+      reset: ttl,
+    }
+  } catch (error) {
+    console.error("Rate limiter error:", error)
+    // If Redis fails, allow the request but log the error
+    return {
+      success: true,
+      limit: config.limit,
+      remaining: 1,
+      reset: config.window,
+    }
   }
 }
 
-// Export a singleton instance
-export const rateLimiter = new RateLimiter()
+export function getRateLimitResponse(result: Awaited<ReturnType<typeof rateLimiter>>) {
+  if (!result.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        limit: result.limit,
+        remaining: result.remaining,
+        reset: result.reset,
+      },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Limit": result.limit.toString(),
+          "X-RateLimit-Remaining": result.remaining.toString(),
+          "X-RateLimit-Reset": result.reset.toString(),
+          "Retry-After": result.reset.toString(),
+        },
+      },
+    )
+  }
+
+  return null
+}

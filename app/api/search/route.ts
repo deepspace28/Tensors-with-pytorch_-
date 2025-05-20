@@ -1,187 +1,215 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { searchCache } from "@/lib/search-cache"
 
-// Google API constants
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY
-const SEARCH_ENGINE_ID = process.env.SEARCH_ENGINE_ID
-
-// Fallback search data for when the API fails
+// Fallback search data for when the API is unavailable
 const fallbackSearchData = {
-  "quantum computing": [
-    {
-      title: "Quantum Computing - Wikipedia",
-      snippet:
-        "Quantum computing is a type of computation whose operations can harness the phenomena of quantum mechanics, such as superposition, interference, and entanglement.",
-      link: "https://en.wikipedia.org/wiki/Quantum_computing",
-    },
-    {
-      title: "What is Quantum Computing? - IBM",
-      snippet:
-        "Quantum computers harness the unique behavior of quantum physics to perform calculations in fundamentally different ways than classical computers.",
-      link: "https://www.ibm.com/quantum/what-is-quantum-computing",
-    },
-    {
-      title: "Quantum Computing: Progress and Prospects",
-      snippet:
-        "Quantum computing is an emerging technology that has the potential to solve certain problems that are intractable for classical computers.",
-      link: "https://www.nap.edu/catalog/25196/quantum-computing-progress-and-prospects",
-    },
-  ],
-  "artificial intelligence": [
-    {
-      title: "Artificial Intelligence - Wikipedia",
-      snippet:
-        "Artificial intelligence (AI) is intelligence demonstrated by machines, as opposed to intelligence of humans and other animals.",
-      link: "https://en.wikipedia.org/wiki/Artificial_intelligence",
-    },
-    {
-      title: "What is AI? - IBM",
-      snippet:
-        "Artificial intelligence leverages computers and machines to mimic the problem-solving and decision-making capabilities of the human mind.",
-      link: "https://www.ibm.com/topics/artificial-intelligence",
-    },
-  ],
+  "quantum mechanics":
+    "Quantum mechanics is a fundamental theory in physics that provides a description of the physical properties of nature at the scale of atoms and subatomic particles. It is the foundation of all quantum physics including quantum chemistry, quantum field theory, quantum technology, and quantum information science.",
+  "quantum computing":
+    "Quantum computing is a type of computation that harnesses the collective properties of quantum states, such as superposition, interference, and entanglement, to perform calculations. The devices that perform quantum computations are known as quantum computers.",
+  // ... other fallback data entries
 }
 
-export async function POST(req: Request) {
-  try {
-    const { query } = await req.json()
+// Function to generate a fallback search response based on the query
+function generateFallbackSearchResponse(query: string): string {
+  const normalizedQuery = query.toLowerCase().trim()
 
-    if (!query) {
-      return NextResponse.json({ error: "Query is required" }, { status: 400 })
+  // Check if we have a direct match in our fallback data
+  for (const [key, value] of Object.entries(fallbackSearchData)) {
+    if (normalizedQuery.includes(key)) {
+      return value
+    }
+  }
+
+  // If no direct match, return a generic response about quantum science
+  return "I couldn't find specific information about that query. Synaptiq specializes in quantum mechanics, physics simulations, and advanced mathematical modeling. Our AI models are trained on scientific literature and can assist with research in these domains. Try asking about quantum computing, physics equations, or mathematical theorems."
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { query } = body
+
+    if (!query || typeof query !== "string") {
+      return NextResponse.json({ error: "Invalid query parameter" }, { status: 400 })
     }
 
-    console.log(`Searching for: ${query}`)
+    console.log(`Processing search query: "${query}"`)
 
-    // Try to use Google Search API first
-    if (GOOGLE_API_KEY && SEARCH_ENGINE_ID) {
-      try {
-        console.log("Attempting to use Google Search API")
-        const searchResults = await fetchGoogleSearchResults(query)
+    // Normalize the query for caching
+    const normalizedQuery = query.toLowerCase().trim()
+    const cacheKey = `ddg:${normalizedQuery}`
 
-        if (searchResults && searchResults.items && searchResults.items.length > 0) {
-          const formattedResponse = formatSearchResponse(query, searchResults.items)
-          return NextResponse.json({ text: formattedResponse })
-        }
-      } catch (error: any) {
-        console.error("Google Search API error:", error.message)
+    // Check cache first
+    const cachedResult = searchCache.get(cacheKey)
+    if (cachedResult) {
+      console.log(`Cache hit for query: "${query}"`)
+      return NextResponse.json({
+        text: formatSearchResults(query, cachedResult),
+        source: "cache",
+      })
+    }
 
-        // Log specific details for 403 errors
-        if (error.message && error.message.includes("403")) {
-          console.error("403 Forbidden error from Google API. This typically means:")
-          console.error("- The API key doesn't have permission for Custom Search API")
-          console.error("- The API key might be invalid or expired")
-          console.error("- There might be billing issues with the Google Cloud account")
-          console.error("- The Search Engine ID might be incorrect")
+    // Attempt to use the DuckDuckGo API directly (no proxy)
+    try {
+      // Call DuckDuckGo API directly from the server
+      const encodedQuery = encodeURIComponent(query)
+      const apiUrl = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_redirect=1&skip_disambig=1&no_html=1&t=synaptiq`
+
+      console.log(`Fetching from DuckDuckGo API: ${apiUrl}`)
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Synaptiq Search Bot/1.0",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`DuckDuckGo API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Process and enhance the response
+      const enhancedData = enhanceSearchResults(data, query)
+
+      // Cache the result
+      searchCache.set(cacheKey, enhancedData)
+
+      console.log(`Successfully fetched results for query: "${query}"`)
+
+      // Format the search results
+      const formattedResults = formatSearchResults(query, enhancedData)
+
+      return NextResponse.json({
+        text: formattedResults,
+        source: "api",
+      })
+    } catch (error: any) {
+      console.error(`DuckDuckGo API error: ${error.message}`)
+
+      // Fall back to local data if DuckDuckGo API fails
+      console.log(`Falling back to local data for query: "${query}"`)
+      return NextResponse.json({
+        text: generateFallbackSearchResponse(query),
+        source: "fallback",
+      })
+    }
+  } catch (error: any) {
+    console.error(`Unexpected error in search route: ${error.message}`)
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 })
+  }
+}
+
+// Function to enhance and normalize search results
+function enhanceSearchResults(data: any, query: string) {
+  // Extract the most relevant information
+  const result = {
+    heading: data.Heading || "",
+    abstract: data.AbstractText || "",
+    abstractSource: data.AbstractSource || "",
+    abstractURL: data.AbstractURL || "",
+    image: data.Image ? `https://duckduckgo.com${data.Image}` : null,
+    relatedTopics: [],
+    infobox: null,
+    answer: data.Answer || "",
+    answerType: data.AnswerType || "",
+    definition: data.Definition || "",
+    definitionSource: data.DefinitionSource || "",
+    definitionURL: data.DefinitionURL || "",
+    query: query,
+    timestamp: new Date().toISOString(),
+  }
+
+  // Process related topics with better structure
+  if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+    result.relatedTopics = data.RelatedTopics.filter((topic: any) => topic.Text && !topic.Name) // Filter out section headers
+      .map((topic: any) => ({
+        text: topic.Text || "",
+        url: topic.FirstURL || "",
+        icon: topic.Icon?.URL ? `https://duckduckgo.com${topic.Icon.URL}` : null,
+      }))
+      .slice(0, 8) // Limit to 8 related topics
+  }
+
+  // Extract structured data from Infobox if available
+  if (data.Infobox && data.Infobox.content) {
+    result.infobox = {
+      title: data.Infobox.meta?.title || "",
+      content: data.Infobox.content
+        .filter((item: any) => item.label && item.value)
+        .map((item: any) => ({
+          label: item.label,
+          value: item.value,
+          // Convert wiki codes to plain text
+          plainValue: item.value.replace(/\[\[([^\]]+)\]\]/g, "$1"),
+        })),
+    }
+  }
+
+  return result
+}
+
+// Enhanced formatter for search results
+function formatSearchResults(query: string, data: any): string {
+  // If no meaningful data, use fallback
+  if (!data || (!data.abstract && (!data.relatedTopics || data.relatedTopics.length === 0) && !data.answer)) {
+    return generateFallbackSearchResponse(query)
+  }
+
+  let formattedResults = `# Search Results for: "${query}"\n\n`
+
+  // Add direct answer if available
+  if (data.answer) {
+    formattedResults += `## Answer\n${data.answer}\n\n`
+  }
+
+  // Add the main abstract if available
+  if (data.abstract) {
+    formattedResults += `## ${data.heading || "Overview"}\n\n${data.abstract}\n\n`
+    if (data.abstractURL) {
+      formattedResults += `Source: [${data.abstractSource || data.heading || "Learn more"}](${data.abstractURL})\n\n`
+    }
+  }
+
+  // Add infobox data if available
+  if (data.infobox && data.infobox.content && data.infobox.content.length > 0) {
+    formattedResults += `## Quick Facts\n\n`
+
+    data.infobox.content.slice(0, 6).forEach((item: any) => {
+      formattedResults += `- **${item.label}**: ${item.plainValue || item.value}\n`
+    })
+
+    formattedResults += `\n`
+  }
+
+  // Add definition if available
+  if (data.definition) {
+    formattedResults += `## Definition\n\n${data.definition}\n\n`
+    if (data.definitionURL) {
+      formattedResults += `Source: [${data.definitionSource || "Definition source"}](${data.definitionURL})\n\n`
+    }
+  }
+
+  // Add related topics if available
+  if (data.relatedTopics && data.relatedTopics.length > 0) {
+    formattedResults += `## Related Topics\n\n`
+
+    data.relatedTopics.slice(0, 5).forEach((topic: any, index: number) => {
+      if (topic.text) {
+        formattedResults += `${index + 1}. ${topic.text}\n`
+        if (topic.url) {
+          formattedResults += `   [Learn more](${topic.url})\n\n`
         }
       }
-    } else {
-      console.log("Google Search API credentials not available")
-    }
-
-    // If we get here, either the API failed or credentials weren't available
-    // Use fallback search mechanism
-    console.log("Using fallback search mechanism")
-    return NextResponse.json({
-      text: generateFallbackSearchResponse(query),
-    })
-  } catch (error) {
-    console.error("Error in search API:", error)
-    return NextResponse.json({
-      text: "I apologize, but I encountered an error while processing your search request. Please try again later.",
     })
   }
-}
 
-async function fetchGoogleSearchResults(query: string) {
-  const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`
-
-  console.log("Fetching from Google API...")
-  const res = await fetch(url)
-
-  if (!res.ok) {
-    const errorText = await res.text()
-    console.error(`Google Search API error status: ${res.status}`)
-    console.error("Google Search API error response:", errorText)
-    throw new Error(`Google Search API returned ${res.status}: ${errorText}`)
+  // Add image if available
+  if (data.image) {
+    formattedResults += `\n![${data.heading || query}](${data.image})\n\n`
   }
 
-  return res.json()
-}
-
-function formatSearchResponse(query: string, results: any[]) {
-  const response = `
-# Search Results for: "${query}"
-
-I've searched the web for information about "${query}" and found the following:
-
-## Summary
-Based on the search results, ${query} is a topic with several important aspects worth exploring. The search results provide both overview information and specific details.
-
-## Key Information
-${results
-  .slice(0, 5)
-  .map((result, index) => `${index + 1}. **${result.title}**: ${result.snippet || "No snippet available."}`)
-  .join("\n\n")}
-
-## Sources
-${results
-  .slice(0, 5)
-  .map((result, index) => `${index + 1}. [${result.title}](${result.link})`)
-  .join("\n\n")}
-
-This information was gathered from web search results. For the most accurate and up-to-date information, I recommend visiting the source websites or consulting specialized scientific literature.
-  `.trim()
-
-  return response
-}
-
-function generateFallbackSearchResponse(query: string) {
-  // Check if we have fallback data for this query
-  const normalizedQuery = query.toLowerCase()
-  let matchedResults = null
-
-  // Try to find a matching topic in our fallback data
-  for (const [topic, results] of Object.entries(fallbackSearchData)) {
-    if (normalizedQuery.includes(topic)) {
-      matchedResults = results
-      break
-    }
-  }
-
-  // If we don't have fallback data, generate a generic response
-  if (!matchedResults) {
-    return `
-# Search Results for: "${query}"
-
-I attempted to search the web for information about "${query}", but I encountered an issue with the search service.
-
-Instead, I'll provide information based on my training data:
-
-${query} is a topic that spans multiple domains of knowledge. To get the most accurate and up-to-date information, I recommend:
-
-1. Consulting academic journals and publications
-2. Checking reputable news sources for recent developments
-3. Exploring educational websites and online courses related to this topic
-
-If you have more specific questions about ${query}, please feel free to ask and I'll do my best to provide information based on my knowledge.
-    `.trim()
-  }
-
-  // Format the fallback results
-  return `
-# Search Results for: "${query}"
-
-I've searched for information about "${query}" and found the following:
-
-## Summary
-Based on available information, ${query} is a topic with several important aspects worth exploring. The results provide both overview information and specific details.
-
-## Key Information
-${matchedResults.map((result, index) => `${index + 1}. **${result.title}**: ${result.snippet}`).join("\n\n")}
-
-## Sources
-${matchedResults.map((result, index) => `${index + 1}. [${result.title}](${result.link})`).join("\n\n")}
-
-Note: Due to technical limitations with the search service, I'm providing information from my knowledge base. For the most up-to-date information, I recommend visiting the source websites or consulting specialized literature.
-  `.trim()
+  return formattedResults
 }

@@ -127,14 +127,6 @@ export function ApiStatusChecker() {
 
       const testData = await testResponse.json()
 
-      // Step 4: Test direct Groq API access (server-side)
-      const groqTestResponse = await fetch("/api/groq-test", {
-        method: "GET",
-        cache: "no-store",
-      })
-
-      const groqTestData = await groqTestResponse.json()
-
       // Compile diagnostic results
       let resultMessage = "Diagnostic Results:\n\n"
       resultMessage += `Environment: ${healthData.environment}\n`
@@ -147,10 +139,6 @@ export function ApiStatusChecker() {
 
       resultMessage += "\nTest Request: "
       resultMessage += testData.text ? "Successful" : "Failed to get a proper response"
-
-      resultMessage += "\nDirect Groq Test: "
-      resultMessage += groqTestData.success ? "Successful" : "Failed"
-      resultMessage += groqTestData.message ? ` - ${groqTestData.message}` : ""
 
       if (healthData.services.groq.status !== "available") {
         resultMessage +=

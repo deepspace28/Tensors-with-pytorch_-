@@ -1,78 +1,83 @@
-import { getBaseUrl } from "./get-base-url"
-
-// Maximum number of retries for API requests
-const MAX_RETRIES = 3
-
-/**
- * API client for making requests to our API with retry logic
- */
-export const apiClient = {
-  async get(path: string, options: RequestInit = {}) {
-    return this.request(path, { ...options, method: "GET" })
+// API client for making requests to our backend
+export const ApiClient = {
+  // Get the base URL with fallback
+  getBaseUrl() {
+    return (
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://localhost:3000/api")
+    )
   },
 
-  async post(path: string, data: any, options: RequestInit = {}) {
-    return this.request(path, {
-      ...options,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      body: JSON.stringify(data),
-    })
-  },
-
-  async request(path: string, options: RequestInit, retryCount = 0): Promise<any> {
-    const baseUrl = getBaseUrl()
-    const url = `${baseUrl}${path}`
-
+  // Chat API
+  async sendChatMessage(messages: any[], mode = "normal") {
     try {
-      // Create a timeout for the fetch request
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
-
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        cache: "no-store", // Prevent caching
+      const response = await fetch(`${this.getBaseUrl()}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages,
+          mode,
+        }),
       })
 
-      // Clear the timeout
-      clearTimeout(timeoutId)
-
-      // If the response is not ok, throw an error
       if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error")
-        throw new Error(`API error: ${response.status} - ${errorText}`)
+        throw new Error(`API error: ${response.status}`)
       }
 
-      // Parse the response as JSON
       return await response.json()
     } catch (error) {
-      // If we've reached the maximum number of retries, throw the error
-      if (retryCount >= MAX_RETRIES) {
-        console.error(`Request to ${url} failed after ${MAX_RETRIES} retries:`, error)
-        throw error
-      }
-
-      // If the error is a timeout or network error, retry the request
-      if (
-        error instanceof Error &&
-        (error.name === "AbortError" || error.message.includes("network") || error.message.includes("failed"))
-      ) {
-        console.warn(`Request to ${url} failed, retrying (${retryCount + 1}/${MAX_RETRIES}):`, error)
-
-        // Wait before retrying (exponential backoff)
-        const delay = Math.pow(2, retryCount) * 1000 + Math.random() * 1000
-        await new Promise((resolve) => setTimeout(resolve, delay))
-
-        // Retry the request
-        return this.request(path, options, retryCount + 1)
-      }
-
-      // For other errors, just throw
+      console.error("Error sending chat message:", error)
       throw error
+    }
+  },
+
+  // Direct Groq API access from client (using public API key)
+  async directGroqRequest(messages: any[], options: any = {}) {
+    if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured for client-side access")
+    }
+
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: options.model || "llama3-70b-8192",
+          messages,
+          temperature: options.temperature || 0.7,
+          max_tokens: options.maxTokens || 4096,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error making direct Groq request:", error)
+      throw error
+    }
+  },
+
+  // Health check
+  async checkApiHealth() {
+    try {
+      const response = await fetch(`${this.getBaseUrl()}/health`)
+
+      if (!response.ok) {
+        return { status: "error", message: `API returned ${response.status}` }
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("Error checking API health:", error)
+      return { status: "error", message: "Failed to connect to API" }
     }
   },
 }

@@ -1,110 +1,103 @@
 import { NextResponse } from "next/server"
+import { serverEnv } from "@/lib/env"
 
-// CORS headers for all responses
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+export async function GET() {
+  // CORS headers
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  }
+
+  try {
+    // Check if GROQ_API_KEY is configured
+    const groqConfigured = Boolean(serverEnv.GROQ_API_KEY)
+    let groqStatus = "unknown"
+    let groqMessage = ""
+
+    // Only test the API if the key is configured
+    if (groqConfigured) {
+      try {
+        // Simple test request to Groq API
+        const response = await fetch("https://api.groq.com/openai/v1/models", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${serverEnv.GROQ_API_KEY}`,
+          },
+          cache: "no-store",
+        })
+
+        if (response.ok) {
+          groqStatus = "available"
+          groqMessage = "API is responding normally"
+        } else {
+          // Handle different error codes
+          if (response.status === 401) {
+            groqStatus = "unavailable"
+            groqMessage = "Invalid API key"
+          } else if (response.status === 429) {
+            groqStatus = "limited"
+            groqMessage = "Rate limit exceeded"
+          } else {
+            groqStatus = "unavailable"
+            groqMessage = `API returned status ${response.status}`
+          }
+        }
+      } catch (error) {
+        groqStatus = "unavailable"
+        groqMessage = error instanceof Error ? error.message : "Unknown error"
+      }
+    } else {
+      groqStatus = "unconfigured"
+      groqMessage = "API key not configured"
+    }
+
+    // Return the health status
+    return NextResponse.json(
+      {
+        status: groqStatus === "available" ? "ok" : "error",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "development",
+        services: {
+          groq: {
+            configured: groqConfigured,
+            status: groqStatus,
+            message: groqMessage,
+          },
+        },
+      },
+      { headers },
+    )
+  } catch (error) {
+    // Handle any unexpected errors
+    console.error("Health check error:", error)
+    return NextResponse.json(
+      {
+        status: "error",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "development",
+        message: error instanceof Error ? error.message : "Unknown error",
+        services: {
+          groq: {
+            configured: false,
+            status: "unknown",
+            message: "Health check failed",
+          },
+        },
+      },
+      { headers, status: 500 },
+    )
+  }
 }
 
 // Handle OPTIONS requests for CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: corsHeaders,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
   })
-}
-
-export async function GET() {
-  try {
-    // Check if GROQ API key is available
-    const groqApiKey = process.env.GROQ_API_KEY // Removed NEXT_PUBLIC prefix
-
-    // Initialize status
-    let groqStatus = {
-      status: "unknown",
-      message: "Not checked",
-    }
-
-    // Actually test the Groq API connection
-    if (groqApiKey) {
-      try {
-        // Create a timeout for the fetch request
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-
-        const response = await fetch("https://api.groq.com/openai/v1/models", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json",
-          },
-          signal: controller.signal,
-          cache: "no-store",
-        })
-
-        // Clear the timeout
-        clearTimeout(timeoutId)
-
-        if (response.ok) {
-          const data = await response.json()
-          groqStatus = {
-            status: "available",
-            message: `Connected to Groq API, ${data.data?.length || 0} models available`,
-          }
-        } else {
-          const errorText = await response.text().catch(() => "Unknown error")
-          groqStatus = {
-            status: "unavailable",
-            message: `Groq API returned ${response.status}: ${errorText}`,
-          }
-        }
-      } catch (error) {
-        console.error("Error checking Groq API:", error)
-        groqStatus = {
-          status: "unavailable",
-          message: error instanceof Error ? error.message : "Unknown error",
-        }
-      }
-    } else {
-      groqStatus = { status: "unconfigured", message: "GROQ_API_KEY not set" }
-    }
-
-    // Determine overall system status
-    const systemStatus = groqStatus.status === "available" ? "operational" : "degraded"
-
-    // Return health check response
-    return NextResponse.json(
-      {
-        status: systemStatus,
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || "unknown",
-        services: {
-          groq: {
-            configured: !!groqApiKey,
-            status: groqStatus.status,
-            message: groqStatus.message,
-          },
-        },
-      },
-      { headers: corsHeaders },
-    )
-  } catch (error) {
-    console.error("Health check error:", error)
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Health check failed",
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : "Unknown error",
-        services: {
-          groq: {
-            status: "unavailable",
-            message: "Health check failed",
-          },
-        },
-      },
-      { status: 500, headers: corsHeaders },
-    )
-  }
 }

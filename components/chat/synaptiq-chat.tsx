@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
 import { ScientificLogo } from "@/components/scientific-logo"
 import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { type Conversation, ConversationStorage, type Message } from "@/lib/conversation-storage"
 import { v4 as uuidv4 } from "uuid"
@@ -55,11 +55,20 @@ export function SynaptiqChat() {
   const [showOfflineMessage, setShowOfflineMessage] = useState(false)
   const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null)
   const [isCheckingApi, setIsCheckingApi] = useState(false)
+  const [isDemoMode, setIsDemoMode] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Check if we're in demo mode based on the URL path
+  useEffect(() => {
+    // Always set demo mode to false regardless of path
+    setIsDemoMode(false)
+    console.log("Demo mode disabled: Using live API mode only")
+  }, [pathname])
 
   // Check network status
   useEffect(() => {
@@ -222,6 +231,7 @@ export function SynaptiqChat() {
     setEditingTitle(null)
   }
 
+  // Updated handleSubmit function with improved demo mode handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading || !currentConversation) return
@@ -261,29 +271,17 @@ export function SynaptiqChat() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-      // First, check API health before making the request
-      const healthCheck = await fetch("/api/health", {
-        method: "GET",
-        cache: "no-store",
-      }).catch(() => null)
-
-      let apiHealthOk = false
-
-      if (healthCheck && healthCheck.ok) {
-        const healthData = await healthCheck.json()
-        apiHealthOk = healthData.services.groq.status === "available"
-
-        if (!apiHealthOk) {
-          console.warn("API health check failed before chat request:", healthData)
-        }
+      // Prepare headers
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
       }
 
-      // Proceed with the chat request even if health check failed (might still work)
+      console.log(`Sending ${chatMode} request (Demo mode: ${isDemoMode ? "YES" : "NO"})`)
+
+      // Proceed with the chat request
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           messages: updatedConversation?.messages.map(({ role, content }) => ({ role, content })) || [],
           mode: chatMode,
@@ -361,7 +359,7 @@ export function SynaptiqChat() {
       if (retryCount >= 2) {
         // After multiple retries, provide a more helpful message
         fallbackMessage = `I apologize, but I'm still having trouble connecting to the server. This might be due to:
-        
+      
 1. Server maintenance
 2. High traffic volume
 3. Network connectivity issues
@@ -460,10 +458,11 @@ In the meantime, I can still try to help with basic questions using my core know
           <div className="flex items-center space-x-2">
             <ScientificLogo className="h-6 w-6 text-white" />
             <h1 className="text-lg font-medium">Synaptiq</h1>
+            {isDemoMode && <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full">Demo Mode</span>}
           </div>
 
           {/* API Status Indicator */}
-          {apiStatus && (
+          {apiStatus && !isDemoMode && (
             <div className="flex items-center">
               <div
                 className={cn(
@@ -488,6 +487,14 @@ In the meantime, I can still try to help with basic questions using my core know
         </div>
       </header>
 
+      {/* Demo Mode Banner */}
+      {isDemoMode && (
+        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
+          <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+          You are currently in demo mode. All features use simulated responses.
+        </div>
+      )}
+
       {/* Offline warning */}
       {showOfflineMessage && (
         <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
@@ -497,7 +504,7 @@ In the meantime, I can still try to help with basic questions using my core know
       )}
 
       {/* API Status warning */}
-      {apiStatus && apiStatus.services.groq.status !== "available" && !showOfflineMessage && (
+      {apiStatus && apiStatus.services.groq.status !== "available" && !showOfflineMessage && !isDemoMode && (
         <div className="bg-red-900/30 border-b border-red-800 p-2 text-center text-red-200 text-sm">
           <AlertTriangle className="inline-block h-4 w-4 mr-2" />
           The AI service is currently experiencing issues. Responses may be limited.

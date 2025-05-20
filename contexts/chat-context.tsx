@@ -17,6 +17,14 @@ interface ChatState {
   queriesRemaining: number
 }
 
+// Define the conversation type
+export interface Conversation {
+  id: string
+  title: string
+  messages: Message[]
+  lastUpdated: Date
+}
+
 // Define the chat context
 interface ChatContextType {
   chatState: ChatState
@@ -32,6 +40,13 @@ interface ChatContextType {
   showUpgradeModal: boolean
   setShowUpgradeModal: (show: boolean) => void
   navigateToLab: (prompt: string) => void
+  // Added for SynaptiqChat component
+  conversations: Conversation[]
+  selectedConversation: Conversation | null
+  createNewConversation: () => void
+  selectConversation: (conversation: Conversation) => void
+  loading: boolean
+  error: string | null
 }
 
 // Create the chat context
@@ -52,6 +67,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showLimitModal, setShowLimitModal] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Added for SynaptiqChat component
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Initialize with a default conversation
+  useEffect(() => {
+    const initialConversation: Conversation = {
+      id: uuidv4(),
+      title: "New Conversation",
+      messages: [],
+      lastUpdated: new Date(),
+    }
+    setConversations([initialConversation])
+    setSelectedConversation(initialConversation)
+  }, [])
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -76,12 +109,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("synaptiq-chat-messages", JSON.stringify(chatState.messages))
   }, [chatState.messages])
 
+  // Function to create a new conversation
+  const createNewConversation = () => {
+    const newConversation: Conversation = {
+      id: uuidv4(),
+      title: "New Conversation",
+      messages: [],
+      lastUpdated: new Date(),
+    }
+    setConversations((prev) => [newConversation, ...prev])
+    setSelectedConversation(newConversation)
+  }
+
+  // Function to select a conversation
+  const selectConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation)
+  }
+
   // Function to send a message
   const sendMessage = async (content: string) => {
     if (chatState.isGuest && chatState.queriesRemaining <= 0) {
       setShowLimitModal(true)
       return
     }
+
+    if (!selectedConversation) return
+
+    setLoading(true)
+    setError(null)
 
     // Create a new user message
     const userMessage: Message = {
@@ -90,6 +145,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       content,
       timestamp: new Date(),
     }
+
+    // Update the selected conversation with the new message
+    const updatedConversation = {
+      ...selectedConversation,
+      messages: [...selectedConversation.messages, userMessage],
+      lastUpdated: new Date(),
+      // Update title for new conversations
+      title:
+        selectedConversation.messages.length === 0
+          ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
+          : selectedConversation.title,
+    }
+
+    // Update conversations state
+    setConversations((prev) => prev.map((conv) => (conv.id === selectedConversation.id ? updatedConversation : conv)))
+    setSelectedConversation(updatedConversation)
 
     // Update the chat state with the new message
     setChatState((prev) => ({
@@ -110,6 +181,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         timestamp: new Date(),
       }
 
+      // Update the selected conversation with the assistant message
+      const finalConversation = {
+        ...updatedConversation,
+        messages: [...updatedConversation.messages, assistantMessage],
+        lastUpdated: new Date(),
+      }
+
+      // Update conversations state
+      setConversations((prev) => prev.map((conv) => (conv.id === selectedConversation.id ? finalConversation : conv)))
+      setSelectedConversation(finalConversation)
+
       // Update the chat state with the assistant message
       setChatState((prev) => ({
         ...prev,
@@ -119,6 +201,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }))
     } catch (error) {
       console.error("Error sending message:", error)
+      setError("Failed to process your request. Please try again.")
 
       // Create an error message
       const errorMessage: Message = {
@@ -134,6 +217,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         messages: [...prev.messages, errorMessage],
         isLoading: false,
       }))
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -169,6 +254,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         showUpgradeModal,
         setShowUpgradeModal,
         navigateToLab,
+        // Added for SynaptiqChat component
+        conversations,
+        selectedConversation,
+        createNewConversation,
+        selectConversation,
+        loading,
+        error,
       }}
     >
       {children}

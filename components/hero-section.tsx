@@ -5,7 +5,6 @@ import { ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
-import { StaggerChildren, StaggerItem } from "@/components/motion"
 
 export function HeroSection() {
   return (
@@ -38,72 +37,63 @@ export function HeroSection() {
       </div>
 
       <div className="container px-4 md:px-6 relative z-20">
-        <StaggerChildren className="mx-auto max-w-3xl text-center">
-          <StaggerItem>
+        <div className="mx-auto max-w-3xl text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
               Build the Future of Science with AI
             </h1>
-          </StaggerItem>
-          <StaggerItem>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl mt-4">
               Accelerate discoveries in quantum mechanics, physics, and mathematics using Synaptiq's specialized AI.
             </p>
-          </StaggerItem>
-          <StaggerItem>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                asChild
-                size="lg"
-                className="bg-primary hover:bg-primary/90 text-lg px-8 py-6 h-auto hover-lift hover-glow"
-              >
-                <Link href="/demo">
-                  Try Demo <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                asChild
-                className="border-primary/20 hover:bg-primary/10 text-lg px-8 py-6 h-auto hover-lift"
-              >
-                <Link href="/beta-access">Request Beta Access</Link>
-              </Button>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 py-6 h-auto">
+              <Link href="/demo">
+                Try Demo <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              asChild
+              className="border-primary/20 hover:bg-primary/10 text-lg px-8 py-6 h-auto"
+            >
+              <Link href="/beta-access">Request Beta Access</Link>
+            </Button>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="mt-12 flex justify-center items-center gap-8"
+          >
+            <div className="flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">99.8%</div>
+              <div className="text-sm text-muted-foreground">Accuracy Rate</div>
             </div>
-          </StaggerItem>
-          <StaggerItem>
-            <div className="mt-12 flex justify-center items-center gap-8">
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-              >
-                <div className="text-3xl font-bold text-primary">99.8%</div>
-                <div className="text-sm text-muted-foreground">Accuracy Rate</div>
-              </motion.div>
-              <div className="h-12 w-px bg-border"></div>
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.8, duration: 0.5 }}
-              >
-                <div className="text-3xl font-bold text-primary">24+</div>
-                <div className="text-sm text-muted-foreground">Research Papers</div>
-              </motion.div>
-              <div className="h-12 w-px bg-border"></div>
-              <motion.div
-                className="flex flex-col items-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1, duration: 0.5 }}
-              >
-                <div className="text-3xl font-bold text-primary">10k+</div>
-                <div className="text-sm text-muted-foreground">Researchers</div>
-              </motion.div>
+            <div className="h-12 w-px bg-border"></div>
+            <div className="flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">24+</div>
+              <div className="text-sm text-muted-foreground">Research Papers</div>
             </div>
-          </StaggerItem>
-        </StaggerChildren>
+            <div className="h-12 w-px bg-border"></div>
+            <div className="flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">10k+</div>
+              <div className="text-sm text-muted-foreground">Researchers</div>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Animated particles */}

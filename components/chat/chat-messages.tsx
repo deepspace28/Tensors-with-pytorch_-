@@ -1,20 +1,18 @@
 "use client"
 
 import { useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { Avatar } from "@/components/ui/avatar"
 import { ScientificLogo } from "@/components/scientific-logo"
-import { User, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import type { Message, MessageSection } from "@/types/chat"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { VisualizationRenderer } from "./visualization-renderer"
-import { SimulationDetector } from "@/components/chat/simulation-detector"
 import { Button } from "@/components/ui/button"
 import { shouldShowSimLabButton } from "@/lib/query-classifier"
 import { useChat } from "@/contexts/chat-context"
 import { ScientificResult } from "@/components/scientific-result"
-import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -31,111 +29,63 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#0a0a0a]">
-      <AnimatePresence>
-        {messages.map((message) => (
-          <motion.div
-            key={message.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      {messages.map((message) => (
+        <div key={message.id} className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}>
+          <div
+            className={cn(
+              "max-w-[80%]",
+              message.role === "assistant" ? "bg-[#1a1a1a] p-4 rounded-lg" : "bg-[#2a2a2a] p-4 rounded-lg",
+            )}
           >
-            <div className={`flex max-w-3xl ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-              <div className="flex-shrink-0 mr-4 ml-4">
-                {message.role === "user" ? (
-                  <Avatar className="h-8 w-8 bg-blue-500/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-blue-500" />
-                  </Avatar>
-                ) : message.role === "assistant" ? (
-                  <Avatar className="h-8 w-8 bg-emerald-500/10 flex items-center justify-center">
-                    <ScientificLogo variant="simple" className="h-5 w-5 text-emerald-500" />
-                  </Avatar>
-                ) : (
-                  <Avatar className="h-8 w-8 bg-red-500/10 flex items-center justify-center">
-                    <span className="text-xs text-red-500">SYS</span>
-                  </Avatar>
-                )}
-              </div>
-
-              <div className="space-y-2 max-w-[80%]">
-                {message.role === "user" ? (
-                  <div className="rounded-lg px-4 py-2 bg-blue-600 text-white">
-                    <p>{message.content}</p>
-                    <div className="text-xs opacity-50 mt-1 text-right">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
-
-                    {/* Add simulation lab button for experiment requests */}
-                    {shouldShowSimLabButton(message.content) && (
-                      <div className="mt-2 pt-2 border-t border-blue-500/30">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-xs bg-blue-700 hover:bg-blue-800 border-blue-500"
-                          onClick={() => navigateToLab(message.content)}
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Open in Simulation Lab
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Simulation detection for user messages */}
-                    <SimulationDetector message={message.content} />
-                  </div>
-                ) : message.sections ? (
-                  <StructuredResponse message={message} />
-                ) : message.role === "assistant" ? (
-                  <ParsedMessageContent content={message.content} timestamp={message.timestamp} />
-                ) : (
-                  <div className="rounded-lg px-4 py-2 bg-gray-800 text-white">
-                    <MarkdownRenderer content={message.content} />
-                    <div className="text-xs opacity-50 mt-1 text-right">
-                      {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-
-        {isLoading && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
-            <div className="flex max-w-3xl">
-              <div className="flex-shrink-0 mr-4">
-                <Avatar className="h-8 w-8 bg-emerald-500/10 flex items-center justify-center">
-                  <ScientificLogo variant="simple" className="h-5 w-5 text-emerald-500" />
+            {message.role === "assistant" && (
+              <div className="flex items-start">
+                <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                  <ScientificLogo className="h-5 w-5" />
                 </Avatar>
+                <div className="flex-1 overflow-hidden">
+                  <div className="prose prose-invert max-w-none">
+                    <MarkdownRenderer content={message.content} />
+                  </div>
+                </div>
               </div>
-
-              <div className="w-full max-w-2xl">
-                <Card className="border border-gray-800 bg-gray-900/50">
-                  <CardContent className="p-4 space-y-3">
-                    <Skeleton className="h-4 w-3/4 bg-gray-800" />
-                    <Skeleton className="h-4 w-full bg-gray-800" />
-                    <Skeleton className="h-4 w-5/6 bg-gray-800" />
-                    <div className="py-2">
-                      <Skeleton className="h-32 w-full bg-gray-800" />
-                    </div>
-                    <Skeleton className="h-4 w-2/3 bg-gray-800" />
-                    <Skeleton className="h-4 w-1/2 bg-gray-800" />
-                  </CardContent>
-                </Card>
+            )}
+            {message.role === "user" && (
+              <div className="overflow-hidden">
+                <div className="prose prose-invert max-w-none">
+                  <p>{message.content}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+      {isLoading && (
+        <div className="flex items-start justify-start">
+          <div className="bg-[#1a1a1a] p-4 rounded-lg max-w-[80%]">
+            <div className="flex items-start">
+              <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                <ScientificLogo className="h-5 w-5" />
+              </Avatar>
+              <div className="flex space-x-2 items-center">
+                <div
+                  className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></div>
+                <div
+                  className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></div>
+                <div
+                  className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></div>
               </div>
             </div>
-          </motion.div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
+      <div ref={messagesEndRef} />
     </div>
   )
 }

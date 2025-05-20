@@ -1,45 +1,35 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// Comprehensive CORS headers
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-  "Access-Control-Max-Age": "86400",
-}
-
 export function middleware(request: NextRequest) {
-  console.log("Middleware called for:", request.nextUrl.pathname, "Method:", request.method)
+  // Get the pathname of the request
+  const path = request.nextUrl.pathname
 
-  // Handle OPTIONS requests immediately
-  if (request.method === "OPTIONS") {
-    console.log("Handling OPTIONS request")
-    return new NextResponse(null, {
-      status: 204,
-      headers: corsHeaders,
+  // Only apply this middleware to API routes
+  if (path.startsWith("/api/")) {
+    // Clone the request headers
+    const requestHeaders = new Headers(request.headers)
+
+    // Get response
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
     })
-  }
 
-  // For API routes, add CORS headers
-  if (request.nextUrl.pathname.startsWith("/api/")) {
-    console.log("Adding CORS headers to API route")
-
-    // Get the response
-    const response = NextResponse.next()
-
-    // Add CORS headers
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.headers.set(key, value)
-    })
+    // Add CORS headers to all API responses
+    response.headers.set("Access-Control-Allow-Origin", "*")
+    response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
     return response
   }
 
-  // For other routes, just continue
+  // For non-API routes, just continue
   return NextResponse.next()
 }
 
+// Only run the middleware on API routes
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: "/api/:path*",
 }
