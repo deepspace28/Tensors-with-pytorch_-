@@ -63,9 +63,6 @@ export default function SimulationsPage() {
     setSimulationResults(null)
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
       // Generate a simulation based on the prompt
       const result = await generateSimulation(prompt)
       setSimulation(result)
@@ -141,30 +138,18 @@ export default function SimulationsPage() {
 
   // Generate simulation based on prompt
   async function generateSimulation(prompt: string): Promise<SimulationData> {
+    console.log("Generating simulation for prompt:", prompt)
+
+    // Skip API calls in development/preview to avoid errors
+    // In a production environment, you would implement proper API calls here
+    console.log("Using client-side simulation generation")
+    return getSimulationForPrompt(prompt)
+  }
+
+  // Get appropriate simulation based on prompt keywords
+  function getSimulationForPrompt(prompt: string): SimulationData {
     const promptLower = prompt.toLowerCase()
 
-    // Try to use the API first
-    try {
-      const response = await fetch("/api/simulations/general/route", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data && data.title) {
-          return data
-        }
-      }
-    } catch (error) {
-      console.error("API error:", error)
-      // Continue with fallback
-    }
-
-    // Fallback to client-side generation
     if (promptLower.includes("pendulum")) {
       return {
         title: "Simple Pendulum Simulation",
