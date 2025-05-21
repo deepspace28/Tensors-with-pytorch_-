@@ -92,7 +92,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const joinBeta = async (email: string, name: string) => {
     // In a real app, this would make an API call to register for beta
     // For demo purposes, we'll just update the user
-    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate API call
 
     if (user) {
       setUser({

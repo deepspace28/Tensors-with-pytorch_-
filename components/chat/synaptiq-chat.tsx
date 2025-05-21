@@ -37,6 +37,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useUser } from "@/contexts/user-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 type ChatMode = "normal" | "search" | "reason"
 
@@ -55,11 +57,16 @@ export function SynaptiqChat() {
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [betaFeatureAttempted, setBetaFeatureAttempted] = useState<string | null>(null)
 
+  const [betaName, setBetaName] = useState("")
+  const [betaEmail, setBetaEmail] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
-  const { user } = useUser()
+  const { user, joinBeta } = useUser()
 
   // Check if user is a beta member
   const isBetaMember = user && !user.isGuest
@@ -362,9 +369,28 @@ In the meantime, I can still try to help with basic questions using my core know
     }
   }
 
+  const handleBetaSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Call the joinBeta function from the user context
+      await joinBeta(betaEmail, betaName)
+      setIsSubmitted(true)
+    } catch (error) {
+      console.error("Failed to join beta:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleBetaFeature = (feature: string) => {
     if (!isBetaMember) {
       setBetaFeatureAttempted(feature)
+      setBetaName("")
+      setBetaEmail("")
+      setIsSubmitting(false)
+      setIsSubmitted(false)
       setShowBetaModal(true)
       return false
     }
@@ -932,44 +958,124 @@ In the meantime, I can still try to help with basic questions using my core know
       <Dialog open={showBetaModal} onOpenChange={setShowBetaModal}>
         <DialogContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
           <DialogHeader>
-            <DialogTitle>Beta Feature</DialogTitle>
+            <DialogTitle>Join the Beta Program</DialogTitle>
             <DialogDescription className="text-gray-400">
               {betaFeatureAttempted} is currently available only to beta members.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p className="mb-4">
-              Join our beta program to access advanced features like Search, Reason, and Simulations.
-            </p>
-            <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#3a3a3a]">
-              <h3 className="font-medium mb-2">Beta Program Benefits:</h3>
-              <ul className="list-disc pl-5 space-y-1 text-sm">
-                <li>Web search capabilities</li>
-                <li>Advanced reasoning for complex problems</li>
-                <li>Interactive scientific simulations</li>
-                <li>Early access to new features</li>
-                <li>Higher usage limits</li>
-              </ul>
+
+          {/* Beta signup form */}
+          {!isSubmitting && !isSubmitted ? (
+            <form onSubmit={handleBetaSignup} className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="beta-name">Full Name</Label>
+                <Input
+                  id="beta-name"
+                  value={betaName}
+                  onChange={(e) => setBetaName(e.target.value)}
+                  className="bg-[#1a1a1a] border-[#3a3a3a] text-white"
+                  placeholder="Dr. Jane Smith"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="beta-email">Email</Label>
+                <Input
+                  id="beta-email"
+                  type="email"
+                  value={betaEmail}
+                  onChange={(e) => setBetaEmail(e.target.value)}
+                  className="bg-[#1a1a1a] border-[#3a3a3a] text-white"
+                  placeholder="jane.smith@university.edu"
+                  required
+                />
+              </div>
+
+              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#3a3a3a] mt-4">
+                <h3 className="font-medium mb-2">Beta Program Benefits:</h3>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Web search capabilities</li>
+                  <li>Advanced reasoning for complex problems</li>
+                  <li>Interactive scientific simulations</li>
+                  <li>Early access to new features</li>
+                  <li>Higher usage limits</li>
+                </ul>
+              </div>
+
+              <DialogFooter className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowBetaModal(false)}
+                  className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a]"
+                >
+                  Maybe Later
+                </Button>
+                <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
+                  Join Beta Program
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : isSubmitting ? (
+            <div className="py-8 text-center">
+              <div className="flex justify-center items-center space-x-2">
+                <div
+                  className="h-4 w-4 bg-purple-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0ms" }}
+                ></div>
+                <div
+                  className="h-4 w-4 bg-purple-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "150ms" }}
+                ></div>
+                <div
+                  className="h-4 w-4 bg-purple-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "300ms" }}
+                ></div>
+              </div>
+              <p className="mt-4 text-gray-400">Processing your request...</p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowBetaModal(false)}
-              className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a]"
-            >
-              Maybe Later
-            </Button>
-            <Button
-              onClick={() => {
-                setShowBetaModal(false)
-                router.push("/beta")
-              }}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              Join Beta Program
-            </Button>
-          </DialogFooter>
+          ) : (
+            <div className="py-8 text-center">
+              <div className="mx-auto h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-green-500 h-6 w-6"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-2">Welcome to the Beta Program!</h3>
+              <p className="text-gray-400 mb-6">
+                You now have access to all beta features including Search, Reason, and Simulations.
+              </p>
+              <Button
+                onClick={() => {
+                  setShowBetaModal(false)
+                  // If the user was trying to use a specific feature, enable it now
+                  if (betaFeatureAttempted === "Search") {
+                    setChatMode("search")
+                  } else if (betaFeatureAttempted === "Reason") {
+                    setChatMode("reason")
+                  } else if (betaFeatureAttempted === "Simulations") {
+                    router.push("/simulations")
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Start Using Beta Features
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
