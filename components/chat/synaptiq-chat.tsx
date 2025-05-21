@@ -1,26 +1,36 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
-import { Send, Search, Lightbulb, Beaker, AlertTriangle, Plus, MoreVertical, Edit, Trash2 } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import {
+  Send,
+  Mic,
+  Plus,
+  Search,
+  Sparkles,
+  Lightbulb,
+  Beaker,
+  Trash2,
+  Edit,
+  MoreVertical,
+  AlertTriangle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
-import { Card } from "@/components/ui/card"
 import { ScientificLogo } from "@/components/scientific-logo"
 import { cn } from "@/lib/utils"
-import { useRouter, usePathname } from "next/navigation"
-import { type Conversation, ConversationStorage } from "@/lib/conversation-storage"
+import { useRouter } from "next/navigation"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
+import { type Conversation, ConversationStorage, type Message } from "@/lib/conversation-storage"
+import { v4 as uuidv4 } from "uuid"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import type { Message } from "@/lib/conversation-storage"
 
 type ChatMode = "normal" | "search" | "reason"
 
 export function SynaptiqChat() {
-  const [messages, setMessages] = useState<Message[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [input, setInput] = useState("")
@@ -32,19 +42,11 @@ export function SynaptiqChat() {
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [showOfflineMessage, setShowOfflineMessage] = useState(false)
-  const [isDemoMode, setIsDemoMode] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
-  const pathname = usePathname()
-
-  // Check if we're in demo mode based on the URL path
-  useEffect(() => {
-    const isInDemoMode = pathname?.includes("/demo") || false
-    setIsDemoMode(isInDemoMode)
-  }, [pathname])
 
   // Check network status
   useEffect(() => {
@@ -81,19 +83,6 @@ export function SynaptiqChat() {
       setCurrentConversation(newConv)
     }
   }, [])
-
-  // Scroll to bottom of messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "inherit"
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
-    }
-  }, [input])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -168,59 +157,178 @@ export function SynaptiqChat() {
     setEditingTitle(null)
   }
 
-  // Updated handleSubmit function with improved demo mode handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
 
-    // Save current scroll position
+    // Store current scroll position
     const scrollPosition = window.scrollY
 
-    // Add user message
+    // Prevent default form behavior
+    e.stopPropagation()
+
+    if (!input.trim() || isLoading || !currentConversation) return
+
+    // Reset any previous errors
+    setError(null)
+
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       role: "user",
-      content: input.trim(),
+      content: input,
       timestamp: new Date(),
     }
-    setMessages((prev) => [...prev, userMessage])
+
+    // Add message to current conversation
+    ConversationStorage.addMessage(currentConversation.id, userMessage)
+
+    // Update state
+    const updatedConversation = ConversationStorage.get(currentConversation.id)
+    setCurrentConversation(updatedConversation || null)
+
+    // Refresh conversations list to update titles and order
+    setConversations(ConversationStorage.getAll())
+
     setInput("")
     setIsLoading(true)
 
-    // Restore scroll position
-    window.scrollTo(0, scrollPosition)
-
     try {
-      // In a real implementation, this would call your API
-      // For now, we'll simulate a response
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: getSimulatedResponse(input.trim()),
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsLoading(false)
-      }, 1000)
+      // Check if we're offline
+      if (!navigator.onLine) {
+        throw new Error("You appear to be offline. Please check your internet connection and try again.")
+      }
+
+      // Choose the appropriate API endpoint based on the chat mode
+      const endpoint = chatMode === "search" ? "/api/search" : "/api/chat"
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
+      // Prepare headers
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      }
+
+      // Proceed with the chat request
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          messages: updatedConversation?.messages.map(({ role, content }) => ({ role, content })) || [],
+          mode: chatMode,
+          query: userMessage.content, // Send the raw query for search mode
+        }),
+        signal: controller.signal,
+        cache: "no-store", // Prevent caching
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error")
+        console.error(`Server returned ${response.status}: ${errorText}`)
+        throw new Error(`Server returned ${response.status}: ${errorText}`)
+      }
+
+      const data = await response.json()
+
+      // If we have an error message in the response, handle it
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      let responseText = ""
+
+      // Handle different response structures
+      if (data.text) {
+        responseText = data.text
+      } else if (data.choices && data.choices[0] && data.choices[0].message) {
+        responseText = data.choices[0].message.content
+      } else if (data.content) {
+        responseText = data.content
+      } else {
+        // Fallback if no expected response format is found
+        console.error("Unexpected API response structure:", data)
+        responseText = "I received your message, but had trouble processing it. Please try again."
+      }
+
+      // Reset retry count on successful response
+      setRetryCount(0)
+
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: responseText,
+        timestamp: new Date(),
+      }
+
+      // Add assistant message to conversation
+      ConversationStorage.addMessage(currentConversation.id, assistantMessage)
+
+      // Update state
+      const finalConversation = ConversationStorage.get(currentConversation.id)
+      setCurrentConversation(finalConversation || null)
+
+      // Refresh conversations list
+      setConversations(ConversationStorage.getAll())
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("Chat error:", error)
+
+      // Increment retry count
+      setRetryCount((prev) => prev + 1)
+
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      setError(errorMessage)
+
+      // Create a fallback response based on the mode and retry count
+      let fallbackMessage = ""
+
+      if (retryCount >= 2) {
+        // After multiple retries, provide a more helpful message
+        fallbackMessage = `I apologize, but I'm still having trouble connecting to the server. This might be due to:
+      
+1. Server maintenance
+2. High traffic volume
+3. Network connectivity issues
+
+You can try:
+- Refreshing the page
+- Checking your internet connection
+- Trying again in a few minutes
+
+In the meantime, I can still try to help with basic questions using my core knowledge.`
+      } else {
+        fallbackMessage = `I apologize, but I encountered an error: ${errorMessage}. Please try again later.`
+
+        if (chatMode === "search") {
+          fallbackMessage +=
+            "\n\nI'm unable to search the web at the moment. Would you like me to answer based on my general knowledge instead?"
+        } else if (chatMode === "reason") {
+          fallbackMessage +=
+            "\n\nI'm unable to use reasoning mode at the moment. Would you like me to provide a standard response instead?"
+        }
+      }
+
+      // Add error message
+      const errorResponseMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: fallbackMessage,
+        timestamp: new Date(),
+      }
+
+      ConversationStorage.addMessage(currentConversation.id, errorResponseMessage)
+
+      // Update state
+      const errorConversation = ConversationStorage.get(currentConversation.id)
+      setCurrentConversation(errorConversation || null)
+
+      // Refresh conversations list
+      setConversations(ConversationStorage.getAll())
+    } finally {
       setIsLoading(false)
-    }
-  }
 
-  const getSimulatedResponse = (query: string): string => {
-    // Simple response logic based on keywords
-    const lowerQuery = query.toLowerCase()
-
-    if (lowerQuery.includes("quantum") || lowerQuery.includes("entanglement")) {
-      return "Quantum entanglement is a physical phenomenon that occurs when a group of particles are generated, interact, or share spatial proximity in a way such that the quantum state of each particle of the group cannot be described independently of the state of the others, including when the particles are separated by a large distance."
-    } else if (lowerQuery.includes("differential") || lowerQuery.includes("equation")) {
-      return "Differential equations are equations that relate a function with its derivatives. They are used to model various phenomena in physics, engineering, economics, and other domains where change is related to other factors."
-    } else if (lowerQuery.includes("hello") || lowerQuery.includes("hi")) {
-      return "Hello! I'm Synaptiq, an AI assistant specialized in scientific topics. How can I help you today?"
-    } else {
-      return "I'm here to help with scientific questions and simulations. Could you provide more details about what you'd like to know?"
+      // Restore scroll position
+      setTimeout(() => window.scrollTo(0, scrollPosition), 0)
     }
   }
 
@@ -269,27 +377,16 @@ export function SynaptiqChat() {
     .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white">
       {/* Header */}
       <header className="border-b border-[#2a2a2a] p-2">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center space-x-2 pl-0 md:pl-0">
             <ScientificLogo className="h-6 w-6 text-white" />
             <h1 className="text-lg font-medium">Synaptiq</h1>
-            {isDemoMode && <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full">Demo Mode</span>}
           </div>
-
-          {/* Removed API Status Indicator */}
         </div>
       </header>
-
-      {/* Demo Mode Banner */}
-      {isDemoMode && (
-        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
-          <AlertTriangle className="inline-block h-4 w-4 mr-2" />
-          You are currently in demo mode. All features use simulated responses.
-        </div>
-      )}
 
       {/* Offline warning */}
       {showOfflineMessage && (
@@ -517,65 +614,83 @@ export function SynaptiqChat() {
         <div className="flex-1 flex flex-col max-h-full overflow-hidden">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
-                <h1 className="text-4xl font-bold">What can I help with?</h1>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
-                  <Card
-                    className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+            {!currentConversation || currentConversation.messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                <h2 className="text-3xl font-medium mb-2">What can I help with?</h2>
+                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                  <div
+                    className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
                     onClick={() => setInput("Explain quantum entanglement")}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Search className="h-5 w-5" />
-                      <h3 className="font-medium">Explain quantum entanglement</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Learn about this fascinating quantum phenomenon</p>
-                  </Card>
-                  <Card
-                    className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => setInput("Solve a differential equation")}
+                    <Search className="h-5 w-5 text-gray-400 mb-2" />
+                    <h3 className="font-medium mb-1">Explain quantum entanglement</h3>
+                    <p className="text-sm text-gray-400">Learn about this fascinating quantum phenomenon</p>
+                  </div>
+                  <div
+                    className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
+                    onClick={() => setInput("Solve the differential equation dy/dx = 2xy")}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="h-5 w-5" />
-                      <h3 className="font-medium">Solve a differential equation</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Get step-by-step solutions to complex problems</p>
-                  </Card>
+                    <Sparkles className="h-5 w-5 text-gray-400 mb-2" />
+                    <h3 className="font-medium mb-1">Solve a differential equation</h3>
+                    <p className="text-sm text-gray-400">Get step-by-step solutions to complex problems</p>
+                  </div>
                 </div>
               </div>
             ) : (
-              messages.map((message) => (
-                <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                    <Avatar className={message.role === "assistant" ? "bg-primary" : "bg-secondary"}>
-                      {message.role === "assistant" ? (
-                        <ScientificLogo className="h-5 w-5 text-primary-foreground" />
-                      ) : (
-                        <div className="text-secondary-foreground">U</div>
-                      )}
-                    </Avatar>
-                    <div
-                      className={`rounded-lg px-4 py-2 ${
-                        message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    </div>
+              currentConversation.messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[80%]",
+                      message.role === "assistant" ? "bg-[#1a1a1a] p-4 rounded-lg" : "bg-[#2a2a2a] p-4 rounded-lg",
+                    )}
+                  >
+                    {message.role === "assistant" && (
+                      <div className="flex items-start">
+                        <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                          <ScientificLogo className="h-5 w-5" />
+                        </Avatar>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="prose prose-invert max-w-none">
+                            <MarkdownRenderer content={message.content} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {message.role === "user" && (
+                      <div className="overflow-hidden">
+                        <div className="prose prose-invert max-w-none">
+                          <p>{message.content}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
             )}
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="flex gap-3 max-w-[80%]">
-                  <Avatar className="bg-primary">
-                    <ScientificLogo className="h-5 w-5 text-primary-foreground" />
-                  </Avatar>
-                  <div className="rounded-lg px-4 py-2 bg-muted">
-                    <div className="flex space-x-2">
-                      <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:-0.3s]"></div>
-                      <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:-0.15s]"></div>
-                      <div className="h-2 w-2 rounded-full bg-current animate-bounce"></div>
+              <div className="flex items-start justify-start">
+                <div className="bg-[#1a1a1a] p-4 rounded-lg max-w-[80%]">
+                  <div className="flex items-start">
+                    <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                      <ScientificLogo className="h-5 w-5" />
+                    </Avatar>
+                    <div className="flex space-x-2 items-center">
+                      <div
+                        className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      ></div>
+                      <div
+                        className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      ></div>
+                      <div
+                        className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      ></div>
                     </div>
                   </div>
                 </div>
@@ -593,35 +708,102 @@ export function SynaptiqChat() {
           </div>
 
           {/* Input area */}
-          <div className="border-t p-4">
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
-                className="min-h-[50px] resize-none"
-                rows={1}
-              />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
+          <div className="p-4">
+            <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+              <div className="relative rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] focus-within:border-[#5a5a5a]">
+                <Textarea
+                  ref={(el) => {
+                    textareaRef.current = el
+                    inputRef.current = el
+                  }}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={chatMode === "search" ? "Search the web..." : "Ask anything"}
+                  className="min-h-[24px] max-h-[200px] resize-none py-3 px-4 rounded-xl bg-transparent border-none text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  disabled={isLoading}
+                />
+
+                {/* Action buttons below the input */}
+                <div className="flex items-center justify-between px-4 py-2 border-t border-[#3a3a3a]">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg hover:text-white hover:bg-[#2a2a2a] transition-all",
+                        chatMode === "search"
+                          ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                          : "text-gray-400",
+                      )}
+                      onClick={() => toggleChatMode("search")}
+                    >
+                      <Search className="h-4 w-4 mr-1" />
+                      <span>Search</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg hover:text-white hover:bg-[#2a2a2a] transition-all",
+                        chatMode === "reason"
+                          ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                          : "text-gray-400",
+                      )}
+                      onClick={() => toggleChatMode("reason")}
+                    >
+                      <Lightbulb className="h-4 w-4 mr-1" />
+                      <span>Reason</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                      onClick={goToSimulations}
+                    >
+                      <Beaker className="h-4 w-4 mr-1" />
+                      <span>Simulations</span>
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                      disabled={isLoading}
+                    >
+                      <Mic className="h-5 w-5" />
+                      <span className="sr-only">Voice input</span>
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={!input.trim() || isLoading}
+                      className="h-8 w-8 rounded-lg bg-[#3a3a3a] text-white hover:bg-[#4a4a4a] disabled:bg-[#2a2a2a] disabled:text-gray-500"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span className="sr-only">Send message</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mode indicator */}
+              {chatMode !== "normal" && (
+                <div className="text-xs text-center mt-2">
+                  {chatMode === "search" && (
+                    <span className="text-gray-400">Search mode active - I'll search the web for information</span>
+                  )}
+                  {chatMode === "reason" && (
+                    <span className="text-gray-400">Reason mode active - I'll provide step-by-step reasoning</span>
+                  )}
+                </div>
+              )}
             </form>
-            <div className="flex justify-center mt-2 gap-4">
-              <Button variant="ghost" size="sm" className="text-xs flex items-center gap-1">
-                <Search className="h-3 w-3" />
-                Search
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs flex items-center gap-1">
-                <Lightbulb className="h-3 w-3" />
-                Reason
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs flex items-center gap-1">
-                <Beaker className="h-3 w-3" />
-                Simulations
-              </Button>
-            </div>
           </div>
         </div>
       </main>

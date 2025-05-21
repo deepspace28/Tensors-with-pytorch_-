@@ -62,9 +62,9 @@ export function getApiBaseUrl() {
   return "http://localhost:3000/api"
 }
 
-// Check if we're in demo mode - always return false to disable demo mode
+// Check if we're in demo mode - ALWAYS RETURN FALSE
 export function isDemoMode() {
-  return false // Always return false to disable demo mode completely
+  return false // Force to always return false
 }
 
 // Get API key with fallback

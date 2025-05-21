@@ -30,8 +30,6 @@ export default function Home() {
         <HeroSection />
         <AboutSynaptiqEnhanced />
 
-        {/* Replace InteractiveDemoSection with VideoDemoSection */}
-
         <TechnologyHighlightsEnhanced />
         <FeatureSection />
         <section className="container py-12 md:py-24 lg:py-32">
