@@ -11,11 +11,16 @@ export function convertToQASM(input: {
     controls?: number[]
     angle?: number
   }>
-  measure: number[]
+  measure?: number[]
   initial_states?: string[]
 }): string {
   // Start with QASM header
-  const qasm = ["OPENQASM 2.0;", 'include "qelib1.inc";', `qreg q[${input.qubits}];`, `creg c[${input.qubits}];`]
+  const qasm = ["OPENQASM 2.0;", 'include "qelib1.inc";', `qreg q[${input.qubits}];`]
+
+  // Add classical register if measurements are specified
+  if (input.measure && input.measure.length > 0) {
+    qasm.push(`creg c[${input.qubits}];`)
+  }
 
   // Handle initial states if provided
   if (input.initial_states) {
@@ -42,7 +47,7 @@ export function convertToQASM(input: {
         break
       case "cnot":
       case "cx":
-        qasm.push(`cx q[${gate.control}], q[${gate.target}];`)
+        qasm.push(`cx q[${gate.control}],q[${gate.target}];`)
         break
       case "x":
       case "pauli-x":
@@ -77,11 +82,15 @@ export function convertToQASM(input: {
         qasm.push(`rz(${rzAngle}) q[${gate.target}];`)
         break
       case "swap":
-        qasm.push(`swap q[${gate.targets?.[0]}], q[${gate.targets?.[1]}];`)
+        if (gate.targets && gate.targets.length >= 2) {
+          qasm.push(`swap q[${gate.targets[0]}],q[${gate.targets[1]}];`)
+        }
         break
       case "toffoli":
       case "ccx":
-        qasm.push(`ccx q[${gate.controls?.[0]}], q[${gate.controls?.[1]}], q[${gate.target}];`)
+        if (gate.controls && gate.controls.length >= 2) {
+          qasm.push(`ccx q[${gate.controls[0]}],q[${gate.controls[1]}],q[${gate.target}];`)
+        }
         break
       default:
         console.warn(`Unsupported gate: ${gate.name}`)
@@ -89,8 +98,10 @@ export function convertToQASM(input: {
   }
 
   // Add measurements
-  for (const m of input.measure) {
-    qasm.push(`measure q[${m}] -> c[${m}];`)
+  if (input.measure) {
+    for (const m of input.measure) {
+      qasm.push(`measure q[${m}] -> c[${m}];`)
+    }
   }
 
   return qasm.join("\n")
@@ -105,7 +116,7 @@ include "qelib1.inc";
 qreg q[${qubits}];
 creg c[${qubits}];
 h q[0];
-cx q[0], q[1];
+cx q[0],q[1];
 measure q[0] -> c[0];
 measure q[1] -> c[1];`
 }
@@ -118,7 +129,35 @@ export function createGHZStateQASM(qubits = 3): string {
 
   // Add CNOT gates to entangle all qubits
   for (let i = 0; i < qubits - 1; i++) {
-    qasm.push(`cx q[${i}], q[${i + 1}];`)
+    qasm.push(`cx q[${i}],q[${i + 1}];`)
+  }
+
+  // Add measurements
+  for (let i = 0; i < qubits; i++) {
+    qasm.push(`measure q[${i}] -> c[${i}];`)
+  }
+
+  return qasm.join("\n")
+}
+
+/**
+ * Creates a Quantum Fourier Transform QASM program
+ */
+export function createQFTQASM(qubits = 3): string {
+  const qasm = ["OPENQASM 2.0;", 'include "qelib1.inc";', `qreg q[${qubits}];`, `creg c[${qubits}];`]
+
+  // Initialize with Hadamard gates
+  for (let i = 0; i < qubits; i++) {
+    qasm.push(`h q[${i}];`)
+  }
+
+  // QFT implementation
+  for (let i = 0; i < qubits; i++) {
+    for (let j = i + 1; j < qubits; j++) {
+      const angle = Math.PI / Math.pow(2, j - i)
+      qasm.push(`// Controlled phase rotation`)
+      qasm.push(`cp(${angle}) q[${j}],q[${i}];`)
+    }
   }
 
   // Add measurements

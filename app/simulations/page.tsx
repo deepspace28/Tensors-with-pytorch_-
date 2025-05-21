@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle, Code } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle, Code, Copy, Check } from "lucide-react"
 import Link from "next/link"
 import { MathJax, MathJaxContext } from "better-react-mathjax"
 import { ResourceLoader } from "@/components/resource-loader"
-import { convertToQASM, createBellStateQASM, createGHZStateQASM } from "@/lib/qasm-converter"
+import { convertToQASM, createBellStateQASM, createGHZStateQASM, createQFTQASM } from "@/lib/qasm-converter"
 
 // Define the simulation parameter type
 interface SimulationParameter {
@@ -38,6 +39,8 @@ interface SimulationResponse {
   results?: {
     counts?: Record<string, number>
     statevector?: any
+    circuit_image?: string
+    histogram_image?: string
     visualization?: any
     circuit_diagram?: string
   }
@@ -54,6 +57,7 @@ export default function SimulationsPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [apiResponse, setApiResponse] = useState<SimulationResponse | null>(null)
   const [qasmCode, setQasmCode] = useState<string>("")
+  const [copied, setCopied] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Reset parameters when simulation changes
@@ -113,16 +117,10 @@ export default function SimulationsPage() {
       return "bell-state"
     } else if (lowerPrompt.includes("ghz")) {
       return "ghz-state"
+    } else if (lowerPrompt.includes("qft") || lowerPrompt.includes("fourier")) {
+      return "qft"
     } else if (lowerPrompt.includes("quantum") || lowerPrompt.includes("qubit")) {
       return "quantum"
-    } else if (lowerPrompt.includes("pendulum") || lowerPrompt.includes("oscillation")) {
-      return "pendulum"
-    } else if (lowerPrompt.includes("wave") || lowerPrompt.includes("schrodinger")) {
-      return "wave"
-    } else if (lowerPrompt.includes("orbit") || lowerPrompt.includes("planet")) {
-      return "orbital"
-    } else if (lowerPrompt.includes("slit") || lowerPrompt.includes("interference")) {
-      return "double-slit"
     } else {
       return "quantum" // Default to quantum if we can't determine
     }
@@ -175,6 +173,32 @@ export default function SimulationsPage() {
           explanation:
             "This simulation creates a Greenberger-Horne-Zeilinger (GHZ) state, which is a maximally entangled state of three or more qubits. The circuit applies a Hadamard gate to the first qubit followed by CNOT gates to entangle all qubits.",
         }
+      case "qft":
+        return {
+          title: "Quantum Fourier Transform",
+          equations: ["\\text{QFT}|j\\rangle = \\frac{1}{\\sqrt{N}}\\sum_{k=0}^{N-1} e^{2\\pi ijk/N}|k\\rangle"],
+          parameters: [
+            {
+              name: "qubits",
+              label: "Number of Qubits",
+              default: 3,
+              min: 2,
+              max: 5,
+              unit: "",
+            },
+            {
+              name: "shots",
+              label: "Number of Shots",
+              default: 1024,
+              min: 100,
+              max: 8192,
+              unit: "",
+            },
+          ],
+          chartType: "bar",
+          explanation:
+            "The Quantum Fourier Transform (QFT) is a quantum analog of the discrete Fourier transform. It's a fundamental building block in many quantum algorithms including Shor's factoring algorithm.",
+        }
       case "quantum":
         return {
           title: "Quantum Circuit Simulation",
@@ -212,66 +236,31 @@ export default function SimulationsPage() {
           explanation:
             "This simulation runs a quantum circuit with the specified number of qubits and gates. The results show the probability distribution of measuring each possible state.",
         }
-      case "pendulum":
-        return {
-          title: "Simple Pendulum Simulation",
-          equations: ["\\theta(t) = \\theta_0 \\cos(\\omega t)", "\\omega = \\sqrt{\\frac{g}{L}}"],
-          parameters: [
-            {
-              name: "length",
-              label: "Pendulum Length (L)",
-              default: 1,
-              min: 0.1,
-              max: 5,
-              unit: "m",
-            },
-            {
-              name: "gravity",
-              label: "Gravity (g)",
-              default: 9.8,
-              min: 1,
-              max: 20,
-              unit: "m/s²",
-            },
-            {
-              name: "initialAngle",
-              label: "Initial Angle (θ₀)",
-              default: 30,
-              min: 0,
-              max: 90,
-              unit: "°",
-            },
-          ],
-          chartType: "line",
-          explanation:
-            "This simulation shows the motion of a simple pendulum. The period of oscillation depends on the length of the pendulum and the gravitational acceleration.",
-        }
-      // Add other simulation types as needed
       default:
         return {
-          title: "Generic Simulation",
+          title: "Generic Quantum Simulation",
           equations: ["E = mc^2"],
           parameters: [
             {
-              name: "parameter1",
-              label: "Parameter 1",
-              default: 5,
-              min: 0,
-              max: 10,
-              unit: "",
-            },
-            {
-              name: "parameter2",
-              label: "Parameter 2",
+              name: "qubits",
+              label: "Number of Qubits",
               default: 2,
-              min: 0,
+              min: 1,
               max: 5,
               unit: "",
             },
+            {
+              name: "shots",
+              label: "Number of Shots",
+              default: 1024,
+              min: 100,
+              max: 8192,
+              unit: "",
+            },
           ],
-          chartType: "line",
+          chartType: "bar",
           explanation:
-            "This is a generic simulation based on your prompt. Adjust the parameters to see how they affect the results.",
+            "This is a generic quantum simulation based on your prompt. Adjust the parameters to see how they affect the results.",
         }
     }
   }
@@ -290,6 +279,15 @@ export default function SimulationsPage() {
     runSimulationWithParams(simulation, paramValues)
   }
 
+  // Copy QASM code to clipboard
+  const copyQasmToClipboard = () => {
+    if (qasmCode) {
+      navigator.clipboard.writeText(qasmCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   // Run simulation with specific parameters
   const runSimulationWithParams = async (sim: SimulationData, params: Record<string, number>) => {
     setIsRunning(true)
@@ -300,13 +298,16 @@ export default function SimulationsPage() {
     try {
       // Generate QASM code based on the simulation type and parameters
       let qasm = ""
-      const shots = params.shots || 1024
+      const shots = Math.floor(params.shots || 1024)
 
       if (sim.title.includes("Bell State")) {
         qasm = createBellStateQASM()
       } else if (sim.title.includes("GHZ State")) {
         const numQubits = Math.floor(params.qubits) || 3
         qasm = createGHZStateQASM(numQubits)
+      } else if (sim.title.includes("Quantum Fourier Transform")) {
+        const numQubits = Math.floor(params.qubits) || 3
+        qasm = createQFTQASM(numQubits)
       } else if (sim.title.includes("Quantum Circuit")) {
         // Prepare a quantum circuit simulation request
         const numQubits = Math.floor(params.qubits) || 2
@@ -347,6 +348,9 @@ export default function SimulationsPage() {
       // Store the QASM code for display
       setQasmCode(qasm)
 
+      console.log("Sending QASM to API:", qasm)
+      console.log("Shots:", shots)
+
       // Make the API call with QASM code
       const response = await fetch("https://sitebackend-production.up.railway.app/simulate", {
         method: "POST",
@@ -360,7 +364,8 @@ export default function SimulationsPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`API request failed with status ${response.status}: ${errorText}`)
       }
 
       const data = await response.json()
@@ -427,28 +432,6 @@ export default function SimulationsPage() {
           ...Object.entries(results.counts)
             .map(([state, count]) => `Measured |${state}> ${count} times (${((count as number) / total).toFixed(4)})`)
             .slice(0, 5),
-        ],
-      }
-    } else if (chartType === "line" && results.visualization?.time_series) {
-      // Process time series data for line charts
-      const timeSeries = results.visualization.time_series
-
-      return {
-        chartData: {
-          labels: timeSeries.time,
-          datasets: [
-            {
-              label: "Position",
-              data: timeSeries.position,
-            },
-          ],
-          xLabel: "Time (s)",
-          yLabel: "Position",
-        },
-        insights: [
-          `Simulation duration: ${timeSeries.time[timeSeries.time.length - 1]} seconds`,
-          `Maximum position: ${Math.max(...timeSeries.position).toFixed(2)}`,
-          `Minimum position: ${Math.min(...timeSeries.position).toFixed(2)}`,
         ],
       }
     } else {
@@ -539,35 +522,6 @@ export default function SimulationsPage() {
             ctx.fillStyle = "#ffffff"
           }
         })
-      } else if (chartType === "scatter") {
-        // Draw scatter plot
-        const dataset = chartData.datasets[0]
-        const data = dataset.data
-
-        // Find min/max values
-        let minX = Math.min(...data.map((d: any) => d.x))
-        let maxX = Math.max(...data.map((d: any) => d.x))
-        let minY = Math.min(...data.map((d: any) => d.y))
-        let maxY = Math.max(...data.map((d: any) => d.y))
-
-        // Add padding to ranges
-        const rangeX = maxX - minX || 1
-        const rangeY = maxY - minY || 1
-        minX -= rangeX * 0.1
-        maxX += rangeX * 0.1
-        minY -= rangeY * 0.1
-        maxY += rangeY * 0.1
-
-        // Draw points
-        ctx.fillStyle = "#ffffff"
-        data.forEach((point: any) => {
-          const x = padding + ((point.x - minX) / (maxX - minX)) * (width - 2 * padding)
-          const y = height - padding - ((point.y - minY) / (maxY - minY)) * (height - 2 * padding)
-
-          ctx.beginPath()
-          ctx.arc(x, y, 2, 0, 2 * Math.PI)
-          ctx.fill()
-        })
       } else {
         // Draw line chart
         const dataset = chartData.datasets[0]
@@ -609,7 +563,7 @@ export default function SimulationsPage() {
           <ArrowLeft className="h-5 w-5 mr-2" />
           <span>Back to Chat</span>
         </Link>
-        <h1 className="text-xl font-bold text-white mx-auto">Scientific Simulations</h1>
+        <h1 className="text-xl font-bold text-white mx-auto">Quantum Simulations</h1>
         <div className="w-24" />
       </header>
 
@@ -633,18 +587,20 @@ export default function SimulationsPage() {
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {["bell state", "ghz state", "quantum circuit", "hadamard gate", "entanglement"].map((example) => (
-                    <Button
-                      key={example}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setExamplePrompt(`Simulate a ${example}`)}
-                      className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                    >
-                      {example}
-                    </Button>
-                  ))}
+                  {["bell state", "ghz state", "quantum fourier transform", "hadamard gate", "entanglement"].map(
+                    (example) => (
+                      <Button
+                        key={example}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setExamplePrompt(`Simulate a ${example}`)}
+                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
+                      >
+                        {example}
+                      </Button>
+                    ),
+                  )}
                 </div>
                 <Button
                   type="submit"
@@ -721,7 +677,7 @@ export default function SimulationsPage() {
                             id={param.name}
                             min={param.min}
                             max={param.max}
-                            step={(param.max - param.min) / 100}
+                            step={param.name === "qubits" ? 1 : (param.max - param.min) / 100}
                             value={[paramValues[param.name] || param.default]}
                             onValueChange={(value) => handleParamChange(param.name, value[0])}
                             className="flex-1"
@@ -755,9 +711,20 @@ export default function SimulationsPage() {
               {qasmCode && (
                 <Card className="bg-black border border-white/10">
                   <CardHeader>
-                    <CardTitle className="text-lg font-medium text-white flex items-center">
-                      <Code className="h-5 w-5 mr-2" />
-                      QASM Code
+                    <CardTitle className="text-lg font-medium text-white flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Code className="h-5 w-5 mr-2" />
+                        QASM Code
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={copyQasmToClipboard}
+                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
+                      >
+                        {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
@@ -768,49 +735,81 @@ export default function SimulationsPage() {
                 </Card>
               )}
 
-              {/* Visualization */}
-              <Card className="bg-black border border-white/10">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Visualization</h3>
-                  <div className="w-full h-64 bg-black border border-white/20 rounded-md overflow-hidden">
-                    <canvas ref={canvasRef} className="w-full h-full" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* API Response (for debugging) */}
-              {apiResponse && (
+              {/* Simulation Results */}
+              {apiResponse?.results && (
                 <Card className="bg-black border border-white/10">
                   <CardHeader>
-                    <CardTitle className="text-lg font-medium text-white">API Response</CardTitle>
+                    <CardTitle className="text-lg font-medium text-white">Simulation Results</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <div className="p-4 bg-black border border-white/20 rounded-md overflow-auto">
-                      <pre className="text-xs text-white/70 whitespace-pre-wrap">
-                        {JSON.stringify(apiResponse, null, 2)}
-                      </pre>
-                    </div>
+                    <Tabs defaultValue="visualization" className="w-full">
+                      <TabsList className="grid grid-cols-3 mb-4">
+                        <TabsTrigger value="visualization">Visualization</TabsTrigger>
+                        <TabsTrigger value="circuit">Circuit</TabsTrigger>
+                        <TabsTrigger value="data">Data</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="visualization" className="space-y-4">
+                        {apiResponse.results.histogram_image ? (
+                          <div className="flex flex-col items-center">
+                            <h4 className="text-sm font-medium text-white/70 mb-2">Measurement Histogram</h4>
+                            <div className="w-full bg-black border border-white/20 rounded-md overflow-hidden p-4 flex justify-center">
+                              <img
+                                src={`data:image/png;base64,${apiResponse.results.histogram_image}`}
+                                alt="Measurement Histogram"
+                                className="max-w-full h-auto"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-64 bg-black border border-white/20 rounded-md overflow-hidden">
+                            <canvas ref={canvasRef} className="w-full h-full" />
+                          </div>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="circuit" className="space-y-4">
+                        {apiResponse.results.circuit_image ? (
+                          <div className="flex flex-col items-center">
+                            <h4 className="text-sm font-medium text-white/70 mb-2">Quantum Circuit</h4>
+                            <div className="w-full bg-black border border-white/20 rounded-md overflow-hidden p-4 flex justify-center">
+                              <img
+                                src={`data:image/png;base64,${apiResponse.results.circuit_image}`}
+                                alt="Quantum Circuit"
+                                className="max-w-full h-auto"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-black border border-white/20 rounded-md text-white/50 text-center">
+                            No circuit visualization available
+                          </div>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="data" className="space-y-4">
+                        <div className="p-4 bg-black border border-white/20 rounded-md overflow-auto">
+                          <h4 className="text-sm font-medium text-white/70 mb-2">Measurement Counts</h4>
+                          <pre className="text-xs text-white/70 whitespace-pre-wrap">
+                            {JSON.stringify(apiResponse.results.counts, null, 2)}
+                          </pre>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Results */}
-              {simulationResults && (
+              {/* Insights */}
+              {simulationResults && simulationResults.insights && (
                 <Card className="bg-black border border-white/10">
                   <CardContent className="p-6">
                     <h3 className="text-lg font-medium text-white mb-4">Insights</h3>
                     <div className="p-4 bg-black border border-white/20 rounded-md">
                       <ul className="space-y-2">
-                        {simulationResults.insights &&
-                          simulationResults.insights.map((insight: string, i: number) => (
-                            <li key={i} className="flex items-start text-white/70">
-                              <span className="text-white/50 mr-2">•</span>
-                              <span>{insight}</span>
-                            </li>
-                          ))}
-                        {!simulationResults.insights && (
-                          <li className="text-white/70">No insights available for this simulation.</li>
-                        )}
+                        {simulationResults.insights.map((insight: string, i: number) => (
+                          <li key={i} className="flex items-start text-white/70">
+                            <span className="text-white/50 mr-2">•</span>
+                            <span>{insight}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
                     <div className="flex justify-between mt-4">
