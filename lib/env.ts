@@ -62,23 +62,9 @@ export function getApiBaseUrl() {
   return "http://localhost:3000/api"
 }
 
-// Check if we're in demo mode
+// Check if we're in demo mode - always return false to disable demo mode
 export function isDemoMode() {
-  // Check feature flag first
-  if (clientEnv.FEATURE_FLAG === "demo") {
-    return true
-  }
-
-  // Then check URL path
-  if (typeof window !== "undefined") {
-    return (
-      window.location.pathname.includes("/demo") ||
-      window.location.hostname.includes("vercel.app") ||
-      window.location.hostname.includes("localhost")
-    )
-  }
-
-  return false
+  return false // Always return false to disable demo mode completely
 }
 
 // Get API key with fallback

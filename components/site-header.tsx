@@ -50,7 +50,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-      <div className="container flex h-16 items-center">
+      <div className="flex h-16 items-center px-4 md:px-6">
         <Sheet>
           <SheetTrigger asChild>
             <Button
@@ -65,12 +65,12 @@ export function SiteHeader() {
             <MobileNav pathname={pathname} />
           </SheetContent>
         </Sheet>
-        <Link href="/" className="mr-6 flex items-center space-x-2 pl-0">
+        <Link href="/" className="flex items-center space-x-2 ml-0">
           <ScientificLogo className="h-8 w-8 text-primary" />
-          <span className="hidden font-bold sm:inline-block">Synaptiq</span>
+          <span className="font-bold">Synaptiq</span>
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <nav className="hidden md:flex">
+          <nav className="hidden md:flex md:ml-6">
             <DesktopNav pathname={pathname} />
           </nav>
           <div className="flex items-center">
