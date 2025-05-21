@@ -216,6 +216,7 @@ export function DemoChat() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -223,9 +224,25 @@ export function DemoChat() {
       const scrollArea = scrollAreaRef.current
       scrollArea.scrollTop = scrollArea.scrollHeight
     }
+
+    // Alternative scroll method using the end ref
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSend = async () => {
+  const handleSend = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+
+      // Store current scroll position
+      const scrollPosition = window.scrollY
+
+      // Prevent default form behavior
+      e.stopPropagation()
+
+      // Restore scroll position
+      setTimeout(() => window.scrollTo(0, scrollPosition), 0)
+    }
+
     if (!isValidString(input) || !input.trim() || isLoading) return
 
     // Clear any previous errors
@@ -312,7 +329,16 @@ export function DemoChat() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
+
+      // Store current scroll position
+      const scrollPosition = window.scrollY
+
       handleSend()
+
+      // Restore scroll position
+      setTimeout(() => window.scrollTo(0, scrollPosition), 0)
+
+      return false
     }
   }
 
@@ -374,6 +400,8 @@ export function DemoChat() {
                 </div>
               </div>
             )}
+            {/* Invisible div to scroll to */}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </CardContent>
@@ -387,7 +415,7 @@ export function DemoChat() {
             className="flex-1"
             disabled={isLoading}
           />
-          <Button onClick={handleSend} disabled={isLoading || !isValidString(input) || !input.trim()}>
+          <Button onClick={(e) => handleSend()} disabled={isLoading || !isValidString(input) || !input.trim()}>
             <SendIcon className="h-4 w-4" />
             <span className="sr-only">Send</span>
           </Button>

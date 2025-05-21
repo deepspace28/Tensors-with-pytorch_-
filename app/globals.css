@@ -27,6 +27,23 @@
   }
 }
 
+/* Fix for unwanted scrolling on form submission */
+html {
+  scroll-behavior: smooth;
+  height: 100%;
+  overflow-anchor: auto;
+}
+
+body {
+  min-height: 100%;
+  overflow-anchor: auto;
+}
+
+/* Prevent scroll anchoring issues */
+.overflow-anchor-none {
+  overflow-anchor: none;
+}
+
 /* Scientific simulation dracula theme */
 .dracula-theme {
   --bg-primary: #282a36;

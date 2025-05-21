@@ -29,12 +29,19 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
 
     onSendMessage(input)
     setInput("")
+
+    // Prevent scroll jump by maintaining the current scroll position
+    const scrollPosition = window.scrollY
+    window.scrollTo(0, scrollPosition)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSubmit(e)
+
+      // Prevent any default browser behavior that might cause scrolling
+      return false
     }
   }
 
