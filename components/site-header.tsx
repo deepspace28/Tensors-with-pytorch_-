@@ -65,7 +65,7 @@ export function SiteHeader() {
             <MobileNav pathname={pathname} />
           </SheetContent>
         </Sheet>
-        <Link href="/" className="mr-6 flex items-center space-x-2">
+        <Link href="/" className="mr-6 flex items-center space-x-2 pl-0">
           <ScientificLogo className="h-8 w-8 text-primary" />
           <span className="hidden font-bold sm:inline-block">Synaptiq</span>
         </Link>
