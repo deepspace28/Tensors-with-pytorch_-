@@ -33,10 +33,10 @@ type ChatMode = "normal" | "search" | "reason"
 
 interface ApiStatus {
   status: "ok" | "error" | "unknown"
-  services: {
-    groq: {
-      configured: boolean
-      status: string
+  services?: {
+    groq?: {
+      configured?: boolean
+      status?: string
     }
   }
 }
@@ -53,7 +53,15 @@ export function SynaptiqChat() {
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [showOfflineMessage, setShowOfflineMessage] = useState(false)
-  const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null)
+  const [apiStatus, setApiStatus] = useState<ApiStatus>({
+    status: "unknown",
+    services: {
+      groq: {
+        configured: false,
+        status: "unknown",
+      },
+    },
+  })
   const [isCheckingApi, setIsCheckingApi] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
@@ -113,8 +121,18 @@ export function SynaptiqChat() {
 
       if (response.ok) {
         const data = await response.json()
-        setApiStatus(data)
+        // Ensure we have a properly structured object even if the API returns something unexpected
+        setApiStatus({
+          status: data.status || "unknown",
+          services: {
+            groq: {
+              configured: data.services?.groq?.configured || false,
+              status: data.services?.groq?.status || "unknown",
+            },
+          },
+        })
       } else {
+        // Set a default error status
         setApiStatus({
           status: "error",
           services: {
@@ -127,6 +145,7 @@ export function SynaptiqChat() {
       }
     } catch (error) {
       console.error("Error checking API health:", error)
+      // Set a default error status on exception
       setApiStatus({
         status: "error",
         services: {
@@ -421,6 +440,11 @@ In the meantime, I can still try to help with basic questions using my core know
     setChatMode((currentMode) => (currentMode === mode ? "normal" : mode))
   }
 
+  // Helper function to safely check API status
+  const isApiAvailable = () => {
+    return apiStatus?.services?.groq?.status === "available"
+  }
+
   // Group conversations by date
   const todayConversations = conversations
     .filter((c) => {
@@ -461,18 +485,11 @@ In the meantime, I can still try to help with basic questions using my core know
             {isDemoMode && <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full">Demo Mode</span>}
           </div>
 
-          {/* API Status Indicator */}
+          {/* API Status Indicator - with safe checks */}
           {apiStatus && !isDemoMode && (
             <div className="flex items-center">
-              <div
-                className={cn(
-                  "h-2 w-2 rounded-full mr-2",
-                  apiStatus.services.groq.status === "available" ? "bg-green-500" : "bg-red-500",
-                )}
-              ></div>
-              <span className="text-xs text-gray-400 mr-2">
-                {apiStatus.services.groq.status === "available" ? "API Online" : "API Issues"}
-              </span>
+              <div className={cn("h-2 w-2 rounded-full mr-2", isApiAvailable() ? "bg-green-500" : "bg-red-500")}></div>
+              <span className="text-xs text-gray-400 mr-2">{isApiAvailable() ? "API Online" : "API Issues"}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -503,8 +520,8 @@ In the meantime, I can still try to help with basic questions using my core know
         </div>
       )}
 
-      {/* API Status warning */}
-      {apiStatus && apiStatus.services.groq.status !== "available" && !showOfflineMessage && !isDemoMode && (
+      {/* API Status warning - with safe checks */}
+      {apiStatus && !isApiAvailable() && !showOfflineMessage && !isDemoMode && (
         <div className="bg-red-900/30 border-b border-red-800 p-2 text-center text-red-200 text-sm">
           <AlertTriangle className="inline-block h-4 w-4 mr-2" />
           The AI service is currently experiencing issues. Responses may be limited.
