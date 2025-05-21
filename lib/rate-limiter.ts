@@ -1,8 +1,8 @@
-import Redis from "ioredis"
 import { type NextRequest, NextResponse } from "next/server"
+import getCacheClient from "./cache-client"
 
-// Initialize Redis client
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379")
+// Get the cache client (Redis or memory fallback)
+const cacheClient = getCacheClient()
 
 interface RateLimitConfig {
   limit: number
@@ -28,28 +28,28 @@ export async function rateLimiter(
 
   try {
     // Get current count
-    const current = await redis.get(key)
-    const currentCount = current ? Number.parseInt(current, 10) : 0
+    const current = await cacheClient.get(key)
+    const currentCount = current ? Number.parseInt(current.toString(), 10) : 0
 
     if (currentCount >= config.limit) {
       return {
         success: false,
         limit: config.limit,
         remaining: 0,
-        reset: await redis.ttl(key),
+        reset: await cacheClient.ttl(key),
       }
     }
 
     // Increment count
-    await redis.incr(key)
+    await cacheClient.incr(key)
 
     // Set expiry if this is the first request in the window
     if (currentCount === 0) {
-      await redis.expire(key, config.window)
+      await cacheClient.expire(key, config.window)
     }
 
     // Get TTL
-    const ttl = await redis.ttl(key)
+    const ttl = await cacheClient.ttl(key)
 
     return {
       success: true,
@@ -59,7 +59,7 @@ export async function rateLimiter(
     }
   } catch (error) {
     console.error("Rate limiter error:", error)
-    // If Redis fails, allow the request but log the error
+    // If cache fails, allow the request but log the error
     return {
       success: true,
       limit: config.limit,

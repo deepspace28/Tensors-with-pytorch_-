@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const cacheKey = `ddg:${normalizedQuery}`
 
     // Check cache first
-    const cachedResult = searchCache.get(cacheKey)
+    const cachedResult = await searchCache.get(cacheKey)
     if (cachedResult) {
       console.log(`Cache hit for query: "${query}"`)
       return NextResponse.json({
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       const enhancedData = enhanceSearchResults(data, query)
 
       // Cache the result
-      searchCache.set(cacheKey, enhancedData)
+      await searchCache.set(cacheKey, enhancedData)
 
       console.log(`Successfully fetched results for query: "${query}"`)
 

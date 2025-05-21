@@ -1,43 +1,33 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { searchCache } from "@/lib/search-cache"
 
-// This endpoint acts as a proxy for DuckDuckGo API to avoid CORS issues
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Get query from URL parameters
-    const searchParams = req.nextUrl.searchParams
+    const searchParams = request.nextUrl.searchParams
     const query = searchParams.get("q")
 
-    // Validate query
-    if (!query || typeof query !== "string" || query.trim() === "") {
-      return NextResponse.json({ error: "Valid query is required" }, { status: 400 })
+    if (!query) {
+      return NextResponse.json({ error: "Missing query parameter" }, { status: 400 })
     }
+
+    // Normalize the query for caching
+    const normalizedQuery = query.toLowerCase().trim()
+    const cacheKey = `ddg-raw:${normalizedQuery}`
 
     // Check cache first
-    const cacheKey = `ddg:${query.toLowerCase().trim()}`
-    const cachedResult = searchCache.get(cacheKey)
-
+    const cachedResult = await searchCache.get(cacheKey)
     if (cachedResult) {
-      console.log(`Cache hit for query: "${query}"`)
-      return NextResponse.json({
-        source: "cache",
-        data: cachedResult,
-      })
+      console.log(`Cache hit for raw query: "${query}"`)
+      return NextResponse.json({ data: cachedResult, source: "cache" })
     }
 
-    console.log(`Cache miss for query: "${query}", fetching from DuckDuckGo API`)
+    // Call DuckDuckGo API
+    const encodedQuery = encodeURIComponent(query)
+    const apiUrl = `https://api.duckduckgo.com/?q=${encodedQuery}&format=json&no_redirect=1&skip_disambig=1&no_html=1&t=synaptiq`
 
-    // Enhanced parameters for better results
-    const url = new URL("https://api.duckduckgo.com/")
-    url.searchParams.append("q", query)
-    url.searchParams.append("format", "json")
-    url.searchParams.append("no_redirect", "1")
-    url.searchParams.append("skip_disambig", "1")
-    url.searchParams.append("no_html", "1")
-    url.searchParams.append("t", "synaptiq") // Custom t parameter to identify our app
+    console.log(`Fetching from DuckDuckGo API: ${apiUrl}`)
 
-    // Make request to DuckDuckGo API
-    const response = await fetch(url.toString(), {
+    const response = await fetch(apiUrl, {
       headers: {
         Accept: "application/json",
         "User-Agent": "Synaptiq Search Bot/1.0",
@@ -50,73 +40,12 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json()
 
-    // Process and enhance the response
-    const enhancedData = enhanceSearchResults(data, query)
-
     // Cache the result
-    searchCache.set(cacheKey, enhancedData)
+    await searchCache.set(cacheKey, data)
 
-    return NextResponse.json({
-      source: "api",
-      data: enhancedData,
-    })
+    return NextResponse.json({ data, source: "api" })
   } catch (error: any) {
-    console.error(`Search proxy error:`, error)
-    return NextResponse.json(
-      {
-        error: "Failed to fetch search results",
-        message: error.message,
-      },
-      { status: 500 },
-    )
+    console.error("Search proxy error:", error.message)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
-}
-
-// Function to enhance and normalize search results
-function enhanceSearchResults(data: any, query: string) {
-  // Extract the most relevant information
-  const result = {
-    heading: data.Heading || "",
-    abstract: data.AbstractText || "",
-    abstractSource: data.AbstractSource || "",
-    abstractURL: data.AbstractURL || "",
-    image: data.Image ? `https://duckduckgo.com${data.Image}` : null,
-    relatedTopics: [],
-    infobox: null,
-    answer: data.Answer || "",
-    answerType: data.AnswerType || "",
-    definition: data.Definition || "",
-    definitionSource: data.DefinitionSource || "",
-    definitionURL: data.DefinitionURL || "",
-    query: query,
-    timestamp: new Date().toISOString(),
-  }
-
-  // Process related topics with better structure
-  if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
-    result.relatedTopics = data.RelatedTopics.filter((topic: any) => topic.Text && !topic.Name) // Filter out section headers
-      .map((topic: any) => ({
-        text: topic.Text || "",
-        url: topic.FirstURL || "",
-        icon: topic.Icon?.URL ? `https://duckduckgo.com${topic.Icon.URL}` : null,
-      }))
-      .slice(0, 8) // Limit to 8 related topics
-  }
-
-  // Extract structured data from Infobox if available
-  if (data.Infobox && data.Infobox.content) {
-    result.infobox = {
-      title: data.Infobox.meta?.title || "",
-      content: data.Infobox.content
-        .filter((item: any) => item.label && item.value)
-        .map((item: any) => ({
-          label: item.label,
-          value: item.value,
-          // Convert wiki codes to plain text
-          plainValue: item.value.replace(/\[\[([^\]]+)\]\]/g, "$1"),
-        })),
-    }
-  }
-
-  return result
 }
