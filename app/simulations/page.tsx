@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle } from "lucide-react"
+import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle, Code } from "lucide-react"
 import Link from "next/link"
 import { MathJax, MathJaxContext } from "better-react-mathjax"
 import { ResourceLoader } from "@/components/resource-loader"
+import { convertToQASM, createBellStateQASM, createGHZStateQASM } from "@/lib/qasm-converter"
 
 // Define the simulation parameter type
 interface SimulationParameter {
@@ -34,10 +35,9 @@ interface SimulationData {
 // Define the API response type
 interface SimulationResponse {
   success: boolean
-  results: {
-    state_vector?: number[][]
-    probabilities?: Record<string, number>
-    measurements?: Record<string, number>
+  results?: {
+    counts?: Record<string, number>
+    statevector?: any
     visualization?: any
     circuit_diagram?: string
   }
@@ -53,6 +53,7 @@ export default function SimulationsPage() {
   const [simulationResults, setSimulationResults] = useState<any>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [apiResponse, setApiResponse] = useState<SimulationResponse | null>(null)
+  const [qasmCode, setQasmCode] = useState<string>("")
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Reset parameters when simulation changes
@@ -76,6 +77,7 @@ export default function SimulationsPage() {
     setSimulation(null)
     setSimulationResults(null)
     setApiResponse(null)
+    setQasmCode("")
 
     try {
       // Parse the prompt to determine what kind of simulation to run
@@ -107,7 +109,11 @@ export default function SimulationsPage() {
   const determineSimulationType = (prompt: string): string => {
     const lowerPrompt = prompt.toLowerCase()
 
-    if (lowerPrompt.includes("quantum") || lowerPrompt.includes("qubit") || lowerPrompt.includes("entangle")) {
+    if (lowerPrompt.includes("bell") || lowerPrompt.includes("entangle")) {
+      return "bell-state"
+    } else if (lowerPrompt.includes("ghz")) {
+      return "ghz-state"
+    } else if (lowerPrompt.includes("quantum") || lowerPrompt.includes("qubit")) {
       return "quantum"
     } else if (lowerPrompt.includes("pendulum") || lowerPrompt.includes("oscillation")) {
       return "pendulum"
@@ -125,6 +131,50 @@ export default function SimulationsPage() {
   // Create a simulation configuration based on the type
   const createSimulationConfig = (type: string, prompt: string): SimulationData => {
     switch (type) {
+      case "bell-state":
+        return {
+          title: "Bell State Quantum Circuit",
+          equations: ["\\left|\\Phi^+\\right> = \\frac{1}{\\sqrt{2}}(\\left|00\\right> + \\left|11\\right>)"],
+          parameters: [
+            {
+              name: "shots",
+              label: "Number of Shots",
+              default: 1024,
+              min: 100,
+              max: 8192,
+              unit: "",
+            },
+          ],
+          chartType: "bar",
+          explanation:
+            "This simulation creates a Bell state, which is a maximally entangled quantum state of two qubits. The circuit applies a Hadamard gate to the first qubit followed by a CNOT gate between the first and second qubit.",
+        }
+      case "ghz-state":
+        return {
+          title: "GHZ State Quantum Circuit",
+          equations: ["\\left|\\text{GHZ}\\right> = \\frac{1}{\\sqrt{2}}(\\left|000\\right> + \\left|111\\right>)"],
+          parameters: [
+            {
+              name: "qubits",
+              label: "Number of Qubits",
+              default: 3,
+              min: 3,
+              max: 5,
+              unit: "",
+            },
+            {
+              name: "shots",
+              label: "Number of Shots",
+              default: 1024,
+              min: 100,
+              max: 8192,
+              unit: "",
+            },
+          ],
+          chartType: "bar",
+          explanation:
+            "This simulation creates a Greenberger-Horne-Zeilinger (GHZ) state, which is a maximally entangled state of three or more qubits. The circuit applies a Hadamard gate to the first qubit followed by CNOT gates to entangle all qubits.",
+        }
       case "quantum":
         return {
           title: "Quantum Circuit Simulation",
@@ -147,6 +197,14 @@ export default function SimulationsPage() {
               default: 2,
               min: 1,
               max: 10,
+              unit: "",
+            },
+            {
+              name: "shots",
+              label: "Number of Shots",
+              default: 1024,
+              min: 100,
+              max: 8192,
               unit: "",
             },
           ],
@@ -237,18 +295,68 @@ export default function SimulationsPage() {
     setIsRunning(true)
     setError(null)
     setApiResponse(null)
+    setQasmCode("")
 
     try {
-      // Prepare the API request based on the simulation type
-      const apiRequest = prepareApiRequest(sim, params)
+      // Generate QASM code based on the simulation type and parameters
+      let qasm = ""
+      const shots = params.shots || 1024
 
-      // Make the actual API call
+      if (sim.title.includes("Bell State")) {
+        qasm = createBellStateQASM()
+      } else if (sim.title.includes("GHZ State")) {
+        const numQubits = Math.floor(params.qubits) || 3
+        qasm = createGHZStateQASM(numQubits)
+      } else if (sim.title.includes("Quantum Circuit")) {
+        // Prepare a quantum circuit simulation request
+        const numQubits = Math.floor(params.qubits) || 2
+        const numGates = Math.floor(params.gates) || 2
+
+        // Create a basic quantum circuit with Hadamard and CNOT gates
+        const gates = []
+
+        // Add Hadamard gates to the first half of qubits
+        for (let i = 0; i < Math.ceil(numQubits / 2); i++) {
+          gates.push({ name: "Hadamard", target: i })
+        }
+
+        // Add CNOT gates between adjacent qubits
+        for (let i = 0; i < numQubits - 1 && gates.length < numGates; i++) {
+          gates.push({ name: "CNOT", control: i, target: i + 1 })
+        }
+
+        // Add more gates if needed
+        while (gates.length < numGates && gates.length < numQubits * 2) {
+          const target = Math.floor(Math.random() * numQubits)
+          gates.push({ name: "Hadamard", target })
+        }
+
+        const circuitInput = {
+          qubits: numQubits,
+          gates: gates,
+          measure: Array.from({ length: numQubits }, (_, i) => i),
+          initial_states: Array(numQubits).fill("|0>"),
+        }
+
+        qasm = convertToQASM(circuitInput)
+      } else {
+        // For non-quantum simulations, create a simple quantum circuit as a fallback
+        qasm = createBellStateQASM()
+      }
+
+      // Store the QASM code for display
+      setQasmCode(qasm)
+
+      // Make the API call with QASM code
       const response = await fetch("https://sitebackend-production.up.railway.app/simulate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(apiRequest),
+        body: JSON.stringify({
+          qasm,
+          shots,
+        }),
       })
 
       if (!response.ok) {
@@ -279,59 +387,6 @@ export default function SimulationsPage() {
     }
   }
 
-  // Prepare the API request based on the simulation type and parameters
-  const prepareApiRequest = (sim: SimulationData, params: Record<string, number>) => {
-    if (sim.title.includes("Quantum")) {
-      // Prepare a quantum circuit simulation request
-      const numQubits = Math.floor(params.qubits) || 2
-      const numGates = Math.floor(params.gates) || 2
-
-      // Create a basic quantum circuit with Hadamard and CNOT gates
-      const gates = []
-
-      // Add Hadamard gates to the first half of qubits
-      for (let i = 0; i < Math.ceil(numQubits / 2); i++) {
-        gates.push({ name: "Hadamard", target: i })
-      }
-
-      // Add CNOT gates between adjacent qubits
-      for (let i = 0; i < numQubits - 1 && gates.length < numGates; i++) {
-        gates.push({ name: "CNOT", control: i, target: i + 1 })
-      }
-
-      // Add more gates if needed
-      while (gates.length < numGates && gates.length < numQubits * 2) {
-        const target = Math.floor(Math.random() * numQubits)
-        gates.push({ name: "Hadamard", target })
-      }
-
-      return {
-        qubits: numQubits,
-        initial_states: Array(numQubits).fill("|0>"),
-        gates: gates,
-        measure: Array.from({ length: numQubits }, (_, i) => i),
-      }
-    } else if (sim.title.includes("Pendulum")) {
-      // Prepare a pendulum simulation request
-      return {
-        simulation_type: "pendulum",
-        parameters: {
-          length: params.length || 1,
-          gravity: params.gravity || 9.8,
-          initial_angle: params.initialAngle || 30,
-          duration: 10,
-          steps: 100,
-        },
-      }
-    } else {
-      // Generic simulation request
-      return {
-        simulation_type: "generic",
-        parameters: params,
-      }
-    }
-  }
-
   // Process the API response to generate chart data
   const processApiResponse = (response: SimulationResponse, chartType: string) => {
     if (!response.success) {
@@ -339,11 +394,18 @@ export default function SimulationsPage() {
     }
 
     const results = response.results
+    if (!results) {
+      throw new Error("No results returned from simulation")
+    }
 
-    if (chartType === "bar" && results.probabilities) {
-      // Process probability data for bar charts (quantum simulations)
-      const labels = Object.keys(results.probabilities)
-      const data = Object.values(results.probabilities)
+    if (chartType === "bar" && results.counts) {
+      // Process counts data for bar charts (quantum simulations)
+      const labels = Object.keys(results.counts)
+      const data = Object.values(results.counts)
+      const total = data.reduce((sum, val) => sum + (val as number), 0)
+
+      // Calculate probabilities
+      const probabilities = data.map((val) => (val as number) / total)
 
       return {
         chartData: {
@@ -351,18 +413,19 @@ export default function SimulationsPage() {
           datasets: [
             {
               label: "Probability",
-              data,
+              data: probabilities,
             },
           ],
           xLabel: "Quantum State",
           yLabel: "Probability",
         },
         insights: [
+          `Total shots: ${total}`,
           `Number of states: ${labels.length}`,
-          `Most probable state: ${labels[data.indexOf(Math.max(...(data as number[])))]}`,
-          `Probability of most likely outcome: ${Math.max(...(data as number[])).toFixed(4)}`,
-          ...Object.entries(results.probabilities)
-            .map(([state, prob]) => `Probability of measuring |${state}>: ${(prob as number).toFixed(4)}`)
+          `Most probable state: ${labels[probabilities.indexOf(Math.max(...probabilities))]}`,
+          `Probability of most likely outcome: ${Math.max(...probabilities).toFixed(4)}`,
+          ...Object.entries(results.counts)
+            .map(([state, count]) => `Measured |${state}> ${count} times (${((count as number) / total).toFixed(4)})`)
             .slice(0, 5),
         ],
       }
@@ -563,27 +626,25 @@ export default function SimulationsPage() {
                   </label>
                   <Input
                     id="prompt"
-                    placeholder="e.g., Simulate a quantum circuit with 2 qubits"
+                    placeholder="e.g., Simulate a Bell state quantum circuit"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     className="h-16 bg-black border-white/20 focus:border-white/40 text-white"
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {["quantum circuit", "bell state", "pendulum", "wave function", "orbital mechanics"].map(
-                    (example) => (
-                      <Button
-                        key={example}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setExamplePrompt(`Simulate a ${example}`)}
-                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                      >
-                        {example}
-                      </Button>
-                    ),
-                  )}
+                  {["bell state", "ghz state", "quantum circuit", "hadamard gate", "entanglement"].map((example) => (
+                    <Button
+                      key={example}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExamplePrompt(`Simulate a ${example}`)}
+                      className="bg-black border-white/20 hover:bg-white/5 text-white/70"
+                    >
+                      {example}
+                    </Button>
+                  ))}
                 </div>
                 <Button
                   type="submit"
@@ -651,7 +712,7 @@ export default function SimulationsPage() {
                             {param.label}
                           </label>
                           <span className="text-sm text-white/70">
-                            {paramValues[param.name]?.toFixed(2)} {param.unit}
+                            {Math.round(paramValues[param.name] || param.default)} {param.unit}
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -689,6 +750,23 @@ export default function SimulationsPage() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* QASM Code */}
+              {qasmCode && (
+                <Card className="bg-black border border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-medium text-white flex items-center">
+                      <Code className="h-5 w-5 mr-2" />
+                      QASM Code
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="p-4 bg-black border border-white/20 rounded-md overflow-auto">
+                      <pre className="text-xs text-white/70 whitespace-pre">{qasmCode}</pre>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Visualization */}
               <Card className="bg-black border border-white/10">
@@ -752,13 +830,14 @@ export default function SimulationsPage() {
                           const data = {
                             simulation: simulation,
                             parameters: paramValues,
+                            qasm: qasmCode,
                             results: apiResponse,
                           }
                           const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
                           const url = URL.createObjectURL(blob)
                           const a = document.createElement("a")
                           a.href = url
-                          a.download = "simulation-results.json"
+                          a.download = "quantum-simulation-results.json"
                           document.body.appendChild(a)
                           a.click()
                           document.body.removeChild(a)
