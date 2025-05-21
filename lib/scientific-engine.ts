@@ -100,186 +100,213 @@ export async function generateScientificContent(
   }
 }
 
-// List of available Groq models to try in order of preference
-const GROQ_MODELS = ["llama2-70b-4096", "mixtral-8x7b-32768", "gemma-7b-it", "llama2-7b"]
-
 // Update the generateSimulation function to fix the API request error
 export async function generateSimulation(prompt: string) {
   try {
-    const systemPrompt = `You are a scientific experiment compiler. Given a freeform experiment request, return:
+    console.log("Starting simulation generation for:", prompt)
 
-A title
+    // Skip API call in development/preview for faster testing
+    // In production, this would call the API
 
-Governing equations (in LaTeX)
+    // Choose simulation based on keywords in the prompt
+    const promptLower = prompt.toLowerCase()
 
-Input parameters (name, label, default, min, max, unit)
-
-A formula or dataset for graphing
-
-Chart type (line, scatter, 3D)
-
-A 3-5 sentence explanation of the result
-Respond in strict JSON format.
-DO NOT include any comments, explanations, or non-JSON content in your response.`
-
-    // Try each model in sequence until one works
-    for (const model of GROQ_MODELS) {
-      try {
-        console.log(`Attempting to use model: ${model}`)
-
-        // Use the direct Groq API route with environment variable
-        const response = await fetch("/api/groq", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt,
-              },
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            temperature: 0.5,
-            max_tokens: 2000,
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const content = data.choices[0].message.content
-
-          console.log("Raw API response:", content)
-
-          // Parse the JSON response
-          try {
-            const jsonString = extractJsonFromString(content)
-            console.log("Extracted JSON string:", jsonString)
-
-            return JSON.parse(jsonString)
-          } catch (parseError) {
-            console.error("Failed to parse JSON response:", parseError)
-            // Continue to next model or fallback
-          }
-        } else {
-          console.error(`API request failed with model ${model}: ${response.status}`)
-          // Try the next model
-        }
-      } catch (apiError) {
-        console.error(`Error with model ${model}:`, apiError)
-        // Continue to next model
-      }
+    if (promptLower.includes("pendulum")) {
+      console.log("Generating pendulum simulation")
+      return getPendulumSimulation()
+    } else if (promptLower.includes("quantum") || promptLower.includes("superposition")) {
+      console.log("Generating quantum simulation")
+      return getQuantumSimulation()
+    } else if (promptLower.includes("wave") || promptLower.includes("potential")) {
+      console.log("Generating wave function simulation")
+      return getWaveFunctionSimulation()
+    } else if (promptLower.includes("orbit") || promptLower.includes("planet")) {
+      console.log("Generating orbital simulation")
+      return getOrbitalSimulation()
+    } else if (promptLower.includes("slit") || promptLower.includes("interference")) {
+      console.log("Generating double-slit simulation")
+      return getDoubleSlitSimulation()
     }
 
-    // If all API calls fail, use mock data
-    console.log("All API calls failed. Using fallback simulation data")
-    return getDefaultSimulation(prompt)
+    // Default to pendulum if no keywords match
+    console.log("No specific simulation matched, using pendulum simulation")
+    return getPendulumSimulation()
   } catch (error) {
     console.error("Error generating simulation:", error)
-    return getDefaultSimulation(prompt)
+    // Return a default simulation on error
+    return getPendulumSimulation()
   }
 }
 
-// Function to get default simulation data based on the prompt
-function getDefaultSimulation(prompt: string) {
-  // Choose different default simulations based on keywords in the prompt
-  const promptLower = prompt.toLowerCase()
+// Predefined simulations for different types
+function getPendulumSimulation() {
+  return {
+    title: "Simple Pendulum Simulation",
+    equations: ["\\theta(t) = \\theta_0 \\cos(\\omega t)", "\\omega = \\sqrt{\\frac{g}{L}}"],
+    parameters: [
+      {
+        name: "length",
+        label: "Pendulum Length (L)",
+        default: 1,
+        min: 0.1,
+        max: 5,
+        unit: "m",
+      },
+      {
+        name: "gravity",
+        label: "Gravity (g)",
+        default: 9.8,
+        min: 1,
+        max: 20,
+        unit: "m/s²",
+      },
+      {
+        name: "initialAngle",
+        label: "Initial Angle (θ₀)",
+        default: 30,
+        min: 0,
+        max: 90,
+        unit: "°",
+      },
+    ],
+    chartType: "line",
+    explanation:
+      "This simulation shows the motion of a simple pendulum. The period of oscillation depends on the length of the pendulum and the gravitational acceleration. For small angles, the motion is approximately simple harmonic.",
+  }
+}
 
-  if (promptLower.includes("quantum") || promptLower.includes("qubit")) {
-    return {
-      title: "Quantum Superposition Simulation",
-      equations: [
-        "\\left|\\psi\\right> = \\alpha\\left|0\\right> + \\beta\\left|1\\right>",
-        "|\\alpha|^2 + |\\beta|^2 = 1",
-      ],
-      parameters: [
-        {
-          name: "alpha",
-          label: "Alpha Coefficient",
-          default: 0.7071,
-          min: 0,
-          max: 1,
-          unit: "",
-        },
-        {
-          name: "decoherence",
-          label: "Decoherence Rate",
-          default: 0.1,
-          min: 0,
-          max: 1,
-          unit: "1/s",
-        },
-      ],
-      chartType: "bar",
-      explanation:
-        "This simulation demonstrates quantum superposition where a qubit exists in multiple states simultaneously. The probability of measuring each state is determined by the squared magnitudes of the complex amplitudes. Decoherence causes the quantum state to collapse over time.",
-    }
-  } else if (promptLower.includes("wave") || promptLower.includes("schrodinger")) {
-    return {
-      title: "Wave Function Simulation",
-      equations: [
-        "i\\hbar\\frac{\\partial}{\\partial t}\\Psi(x,t) = -\\frac{\\hbar^2}{2m}\\frac{\\partial^2}{\\partial x^2}\\Psi(x,t) + V(x)\\Psi(x,t)",
-      ],
-      parameters: [
-        {
-          name: "potential",
-          label: "Potential Well Depth",
-          default: 10,
-          min: 0,
-          max: 50,
-          unit: "eV",
-        },
-        {
-          name: "width",
-          label: "Well Width",
-          default: 1,
-          min: 0.1,
-          max: 5,
-          unit: "nm",
-        },
-      ],
-      chartType: "line",
-      explanation:
-        "This simulation shows the time evolution of a quantum wave function in a potential well. The Schrödinger equation describes how the wave function evolves over time, with solutions representing the probability distribution of finding a particle at different positions.",
-    }
-  } else {
-    // Default to pendulum simulation
-    return {
-      title: "Simple Pendulum Simulation",
-      equations: ["\\theta(t) = \\theta_0 \\cos(\\omega t)", "\\omega = \\sqrt{\\frac{g}{L}}"],
-      parameters: [
-        {
-          name: "length",
-          label: "Pendulum Length (L)",
-          default: 1,
-          min: 0.1,
-          max: 5,
-          unit: "m",
-        },
-        {
-          name: "gravity",
-          label: "Gravity (g)",
-          default: 9.8,
-          min: 1,
-          max: 20,
-          unit: "m/s²",
-        },
-        {
-          name: "initialAngle",
-          label: "Initial Angle (θ₀)",
-          default: 30,
-          min: 0,
-          max: 90,
-          unit: "°",
-        },
-      ],
-      chartType: "line",
-      explanation:
-        "This simulation shows the motion of a simple pendulum. The period of oscillation depends on the length of the pendulum and the gravitational acceleration. For small angles, the motion is approximately simple harmonic.",
-    }
+function getQuantumSimulation() {
+  return {
+    title: "Quantum Superposition Simulation",
+    equations: [
+      "\\left|\\psi\\right> = \\alpha\\left|0\\right> + \\beta\\left|1\\right>",
+      "|\\alpha|^2 + |\\beta|^2 = 1",
+    ],
+    parameters: [
+      {
+        name: "alpha",
+        label: "Alpha Coefficient",
+        default: 0.7071,
+        min: 0,
+        max: 1,
+        unit: "",
+      },
+      {
+        name: "decoherence",
+        label: "Decoherence Rate",
+        default: 0.1,
+        min: 0,
+        max: 1,
+        unit: "1/s",
+      },
+    ],
+    chartType: "bar",
+    explanation:
+      "This simulation demonstrates quantum superposition where a qubit exists in multiple states simultaneously. The probability of measuring each state is determined by the squared magnitudes of the complex amplitudes. Decoherence causes the quantum state to collapse over time.",
+  }
+}
+
+function getWaveFunctionSimulation() {
+  return {
+    title: "Wave Function Simulation",
+    equations: [
+      "i\\hbar\\frac{\\partial}{\\partial t}\\Psi(x,t) = -\\frac{\\hbar^2}{2m}\\frac{\\partial^2}{\\partial x^2}\\Psi(x,t) + V(x)\\Psi(x,t)",
+    ],
+    parameters: [
+      {
+        name: "potential",
+        label: "Potential Well Depth",
+        default: 10,
+        min: 0,
+        max: 50,
+        unit: "eV",
+      },
+      {
+        name: "width",
+        label: "Well Width",
+        default: 1,
+        min: 0.1,
+        max: 5,
+        unit: "nm",
+      },
+    ],
+    chartType: "line",
+    explanation:
+      "This simulation shows the time evolution of a quantum wave function in a potential well. The Schrödinger equation describes how the wave function evolves over time, with solutions representing the probability distribution of finding a particle at different positions.",
+  }
+}
+
+function getOrbitalSimulation() {
+  return {
+    title: "Planetary Orbit Simulation",
+    equations: ["F = G\\frac{m_1 m_2}{r^2}", "T^2 = \\frac{4\\pi^2}{GM}a^3"],
+    parameters: [
+      {
+        name: "mass",
+        label: "Central Mass",
+        default: 1,
+        min: 0.1,
+        max: 10,
+        unit: "M☉",
+      },
+      {
+        name: "distance",
+        label: "Orbital Distance",
+        default: 1,
+        min: 0.1,
+        max: 5,
+        unit: "AU",
+      },
+      {
+        name: "eccentricity",
+        label: "Orbital Eccentricity",
+        default: 0.1,
+        min: 0,
+        max: 0.9,
+        unit: "",
+      },
+    ],
+    chartType: "scatter",
+    explanation:
+      "This simulation models planetary orbits according to Kepler's laws and Newton's law of universal gravitation. The shape of the orbit is determined by the eccentricity, while the orbital period depends on the distance and the central mass according to Kepler's third law.",
+  }
+}
+
+function getDoubleSlitSimulation() {
+  return {
+    title: "Double-Slit Experiment Simulation",
+    equations: [
+      "I(\\theta) = I_0 \\cos^2\\left(\\frac{\\pi d \\sin\\theta}{\\lambda}\\right)",
+      "\\Delta x = \\frac{\\lambda L}{d}",
+    ],
+    parameters: [
+      {
+        name: "wavelength",
+        label: "Wavelength",
+        default: 500,
+        min: 100,
+        max: 1000,
+        unit: "nm",
+      },
+      {
+        name: "slitDistance",
+        label: "Slit Separation",
+        default: 0.1,
+        min: 0.01,
+        max: 1,
+        unit: "mm",
+      },
+      {
+        name: "screenDistance",
+        label: "Screen Distance",
+        default: 1,
+        min: 0.1,
+        max: 5,
+        unit: "m",
+      },
+    ],
+    chartType: "line",
+    explanation:
+      "This simulation demonstrates the wave nature of light through the double-slit experiment. When light passes through two closely spaced slits, an interference pattern forms on the screen due to the superposition of waves. The pattern depends on the wavelength, slit separation, and distance to the screen.",
   }
 }

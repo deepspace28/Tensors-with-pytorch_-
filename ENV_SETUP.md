@@ -52,7 +52,7 @@ If you encounter issues with environment variables:
 4. Verify that you're using the correct variable names in your code
 \`\`\`
 
-```plaintext file=".env.local"
+\`\`\`plaintext file=".env.local"
 # API Keys (SECURE - server-side only)
 GROQ_API_KEY=${process.env.GROQ_API_KEY}
 
