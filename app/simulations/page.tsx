@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle, Code, Copy, Check } from "lucide-react"
 import Link from "next/link"
 import { MathJax, MathJaxContext } from "better-react-mathjax"
@@ -45,6 +46,7 @@ interface SimulationResponse {
     circuit_diagram?: string
   }
   error?: string
+  detail?: string
 }
 
 export default function SimulationsPage() {
@@ -58,6 +60,7 @@ export default function SimulationsPage() {
   const [apiResponse, setApiResponse] = useState<SimulationResponse | null>(null)
   const [qasmCode, setQasmCode] = useState<string>("")
   const [copied, setCopied] = useState(false)
+  const [backend, setBackend] = useState<string>("qasm_simulator")
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Reset parameters when simulation changes
@@ -350,8 +353,9 @@ export default function SimulationsPage() {
 
       console.log("Sending QASM to API:", qasm)
       console.log("Shots:", shots)
+      console.log("Backend:", backend)
 
-      // Make the API call with QASM code
+      // Make the API call with QASM code and backend parameter
       const response = await fetch("https://sitebackend-production.up.railway.app/simulate", {
         method: "POST",
         headers: {
@@ -360,16 +364,27 @@ export default function SimulationsPage() {
         body: JSON.stringify({
           qasm,
           shots,
+          backend, // Add the backend parameter
         }),
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`API request failed with status ${response.status}: ${errorText}`)
+      const responseText = await response.text()
+      console.log("Raw API Response:", responseText)
+
+      let data: SimulationResponse
+      try {
+        data = JSON.parse(responseText)
+      } catch (e) {
+        throw new Error(`Failed to parse API response: ${responseText}`)
       }
 
-      const data = await response.json()
-      console.log("API Response:", data)
+      if (!response.ok) {
+        throw new Error(
+          `API request failed with status ${response.status}: ${data.detail || data.error || responseText}`,
+        )
+      }
+
+      console.log("Parsed API Response:", data)
 
       setApiResponse(data)
 
@@ -395,7 +410,7 @@ export default function SimulationsPage() {
   // Process the API response to generate chart data
   const processApiResponse = (response: SimulationResponse, chartType: string) => {
     if (!response.success) {
-      throw new Error(response.error || "Unknown error in simulation")
+      throw new Error(response.error || response.detail || "Unknown error in simulation")
     }
 
     const results = response.results
@@ -660,6 +675,24 @@ export default function SimulationsPage() {
               <Card className="bg-black border border-white/10">
                 <CardContent className="p-6">
                   <h3 className="text-lg font-medium text-white mb-4">Simulation Parameters</h3>
+
+                  {/* Backend Selection */}
+                  <div className="mb-6">
+                    <label htmlFor="backend" className="text-sm font-medium text-white/70 block mb-2">
+                      Backend
+                    </label>
+                    <Select value={backend} onValueChange={setBackend}>
+                      <SelectTrigger className="bg-black border-white/20 text-white">
+                        <SelectValue placeholder="Select backend" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black border-white/20 text-white">
+                        <SelectItem value="qasm_simulator">QASM Simulator</SelectItem>
+                        <SelectItem value="statevector_simulator">Statevector Simulator</SelectItem>
+                        <SelectItem value="aer_simulator">Aer Simulator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-6">
                     {simulation.parameters.map((param) => (
                       <div key={param.name} className="space-y-2">
@@ -829,6 +862,7 @@ export default function SimulationsPage() {
                           const data = {
                             simulation: simulation,
                             parameters: paramValues,
+                            backend: backend,
                             qasm: qasmCode,
                             results: apiResponse,
                           }
