@@ -2,64 +2,46 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
 interface ResourceLoaderProps {
-  url: string
-  fallback?: React.ReactNode
-  children: (content: string) => React.ReactNode
-  onError?: (error: Error) => void
+  children: React.ReactNode
 }
 
-export function ResourceLoader({ url, fallback, children, onError }: ResourceLoaderProps) {
-  const [content, setContent] = useState<string | null>(null)
-  const [error, setError] = useState<Error | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function ResourceLoader({ children }: ResourceLoaderProps) {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Skip blob URLs and vusercontent.net URLs
-    if (url.startsWith("blob:") || url.includes("vusercontent.net")) {
-      console.warn(`Skipping potentially problematic URL: ${url}`)
-      setError(new Error(`Resource URL not supported: ${url}`))
-      setIsLoading(false)
-      if (onError) onError(new Error(`Resource URL not supported: ${url}`))
-      return
-    }
-
-    async function loadResource() {
-      try {
-        setIsLoading(true)
-        const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error(`Failed to load resource: ${response.status} ${response.statusText}`)
-        }
-        const text = await response.text()
-        setContent(text)
-        setError(null)
-      } catch (err) {
-        console.error(`Error loading resource from ${url}:`, err)
-        setError(err as Error)
-        if (onError) onError(err as Error)
-      } finally {
-        setIsLoading(false)
+    // Set a timeout to prevent infinite loading if resources fail to load
+    const timeout = setTimeout(() => {
+      if (!isLoaded) {
+        setIsLoaded(true)
       }
-    }
+    }, 5000)
 
-    loadResource()
-  }, [url, onError])
+    // Mark as loaded when component mounts on client
+    setIsLoaded(true)
 
-  if (isLoading) {
+    return () => clearTimeout(timeout)
+  }, [])
+
+  if (error) {
     return (
-      <div className="flex justify-center items-center p-4">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      <div className="p-4 text-red-400 text-sm">
+        <p>Error loading resources: {error}</p>
       </div>
     )
   }
 
-  if (error || !content) {
-    return fallback || <div className="text-gray-400 p-4">Failed to load resource</div>
+  if (!isLoaded) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+      </div>
+    )
   }
 
-  return <>{children(content)}</>
+  return <>{children}</>
 }
