@@ -7,6 +7,13 @@ export const serverEnv = {
   MONGODB_URI: process.env.MONGODB_URI || "",
   REDIS_URL: process.env.REDIS_URL || "",
   PYTHON_API_URL: process.env.PYTHON_API_URL || "",
+  PYTHON_API_KEY: process.env.PYTHON_API_KEY || "",
+  JWT_SECRET: process.env.JWT_SECRET || "default_jwt_secret_for_development",
+  ZOHO_USER: process.env.ZOHO_USER || "",
+  ZOHO_APP_PASSWORD: process.env.ZOHO_APP_PASSWORD || "",
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || "",
+  SEARCH_ENGINE_ID: process.env.SEARCH_ENGINE_ID || "",
+  SYNAPTIQ_API_KEY: process.env.SYNAPTIQ_API_KEY || "",
 }
 
 // Client-side environment variables
@@ -14,6 +21,8 @@ export const clientEnv = {
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
   FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "",
+  PYTHON_API_URL: process.env.NEXT_PUBLIC_PYTHON_API_URL || "",
+  GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY || "",
 }
 
 // Validate that required environment variables are set
@@ -53,16 +62,35 @@ export function getApiBaseUrl() {
   return "http://localhost:3000/api"
 }
 
-// Always return false for isDemoMode to disable demo mode completely
+// Check if we're in demo mode
 export function isDemoMode() {
+  // Check feature flag first
+  if (clientEnv.FEATURE_FLAG === "demo") {
+    return true
+  }
+
+  // Then check URL path
+  if (typeof window !== "undefined") {
+    return (
+      window.location.pathname.includes("/demo") ||
+      window.location.hostname.includes("vercel.app") ||
+      window.location.hostname.includes("localhost")
+    )
+  }
+
   return false
 }
 
-// Get API key with fallback - only for server-side use
+// Get API key with fallback
 export function getApiKey() {
-  // Only use server-side key
+  // First try server-side key
   if (serverEnv.GROQ_API_KEY) {
     return serverEnv.GROQ_API_KEY
+  }
+
+  // Then try client-side key
+  if (clientEnv.GROQ_API_KEY) {
+    return clientEnv.GROQ_API_KEY
   }
 
   // Return empty string if no key is available
