@@ -14,6 +14,7 @@ import {
   Edit,
   MoreVertical,
   AlertTriangle,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,8 +26,17 @@ import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { type Conversation, ConversationStorage, type Message } from "@/lib/conversation-storage"
 import { v4 as uuidv4 } from "uuid"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useUser } from "@/contexts/user-context"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type ChatMode = "normal" | "search" | "reason"
 
@@ -42,11 +52,17 @@ export function SynaptiqChat() {
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [showOfflineMessage, setShowOfflineMessage] = useState(false)
+  const [showBetaModal, setShowBetaModal] = useState(false)
+  const [betaFeatureAttempted, setBetaFeatureAttempted] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
+  const { user } = useUser()
+
+  // Check if user is a beta member
+  const isBetaMember = user && !user.isGuest
 
   // Check network status
   useEffect(() => {
@@ -103,6 +119,13 @@ export function SynaptiqChat() {
       inputRef.current.focus()
     }
   }, [isLoading])
+
+  // Reset chat mode to normal if user is not a beta member
+  useEffect(() => {
+    if (!isBetaMember && chatMode !== "normal") {
+      setChatMode("normal")
+    }
+  }, [isBetaMember, chatMode])
 
   const createNewConversation = () => {
     const newConv = ConversationStorage.create()
@@ -339,12 +362,27 @@ In the meantime, I can still try to help with basic questions using my core know
     }
   }
 
-  const goToSimulations = () => {
-    router.push("/simulations")
+  const handleBetaFeature = (feature: string) => {
+    if (!isBetaMember) {
+      setBetaFeatureAttempted(feature)
+      setShowBetaModal(true)
+      return false
+    }
+    return true
   }
 
   const toggleChatMode = (mode: ChatMode) => {
+    if (mode !== "normal" && !handleBetaFeature(mode === "search" ? "Search" : "Reason")) {
+      return
+    }
     setChatMode((currentMode) => (currentMode === mode ? "normal" : mode))
+  }
+
+  const goToSimulations = () => {
+    if (!handleBetaFeature("Simulations")) {
+      return
+    }
+    router.push("/simulations")
   }
 
   // Group conversations by date
@@ -727,46 +765,102 @@ In the meantime, I can still try to help with basic questions using my core know
                 {/* Action buttons below the input */}
                 <div className="flex items-center justify-between px-4 py-2 border-t border-[#3a3a3a]">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "h-8 rounded-lg hover:text-white hover:bg-[#2a2a2a] transition-all",
-                        chatMode === "search"
-                          ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                          : "text-gray-400",
-                      )}
-                      onClick={() => toggleChatMode("search")}
-                    >
-                      <Search className="h-4 w-4 mr-1" />
-                      <span>Search</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "h-8 rounded-lg hover:text-white hover:bg-[#2a2a2a] transition-all",
-                        chatMode === "reason"
-                          ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                          : "text-gray-400",
-                      )}
-                      onClick={() => toggleChatMode("reason")}
-                    >
-                      <Lightbulb className="h-4 w-4 mr-1" />
-                      <span>Reason</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 rounded-lg text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
-                      onClick={goToSimulations}
-                    >
-                      <Beaker className="h-4 w-4 mr-1" />
-                      <span>Simulations</span>
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className={cn(
+                                "h-8 rounded-lg transition-all",
+                                isBetaMember
+                                  ? chatMode === "search"
+                                    ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                                    : "text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                                  : "text-gray-600 cursor-not-allowed",
+                              )}
+                              onClick={() => toggleChatMode("search")}
+                              disabled={!isBetaMember}
+                            >
+                              <Search className="h-4 w-4 mr-1" />
+                              <span>Search</span>
+                              {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {!isBetaMember && (
+                          <TooltipContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <p>Search is a beta feature</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className={cn(
+                                "h-8 rounded-lg transition-all",
+                                isBetaMember
+                                  ? chatMode === "reason"
+                                    ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                                    : "text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                                  : "text-gray-600 cursor-not-allowed",
+                              )}
+                              onClick={() => toggleChatMode("reason")}
+                              disabled={!isBetaMember}
+                            >
+                              <Lightbulb className="h-4 w-4 mr-1" />
+                              <span>Reason</span>
+                              {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {!isBetaMember && (
+                          <TooltipContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <p>Reason is a beta feature</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className={cn(
+                                "h-8 rounded-lg transition-all",
+                                isBetaMember
+                                  ? "text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                                  : "text-gray-600 cursor-not-allowed",
+                              )}
+                              onClick={goToSimulations}
+                              disabled={!isBetaMember}
+                            >
+                              <Beaker className="h-4 w-4 mr-1" />
+                              <span>Simulations</span>
+                              {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {!isBetaMember && (
+                          <TooltipContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <p>Simulations is a beta feature</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -829,6 +923,51 @@ In the meantime, I can still try to help with basic questions using my core know
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Beta Feature Modal */}
+      <Dialog open={showBetaModal} onOpenChange={setShowBetaModal}>
+        <DialogContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+          <DialogHeader>
+            <DialogTitle>Beta Feature</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {betaFeatureAttempted} is currently available only to beta members.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-4">
+              Join our beta program to access advanced features like Search, Reason, and Simulations.
+            </p>
+            <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#3a3a3a]">
+              <h3 className="font-medium mb-2">Beta Program Benefits:</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>Web search capabilities</li>
+                <li>Advanced reasoning for complex problems</li>
+                <li>Interactive scientific simulations</li>
+                <li>Early access to new features</li>
+                <li>Higher usage limits</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBetaModal(false)}
+              className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a]"
+            >
+              Maybe Later
+            </Button>
+            <Button
+              onClick={() => {
+                setShowBetaModal(false)
+                router.push("/beta")
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Join Beta Program
             </Button>
           </DialogFooter>
         </DialogContent>

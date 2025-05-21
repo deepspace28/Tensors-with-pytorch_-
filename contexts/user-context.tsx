@@ -8,6 +8,7 @@ type User = {
   name: string
   email: string
   isGuest: boolean
+  isBetaMember: boolean
   queriesRemaining: number
   maxQueries: number
 }
@@ -19,6 +20,7 @@ type UserContextType = {
   logout: () => void
   registerGuest: () => void
   decrementQueries: () => void
+  joinBeta: (email: string, name: string) => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -52,6 +54,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       name: "Researcher",
       email,
       isGuest: false,
+      isBetaMember: true, // Beta members are logged in users
       queriesRemaining: 10,
       maxQueries: 10,
     }
@@ -70,6 +73,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       name: "Guest",
       email: "",
       isGuest: true,
+      isBetaMember: false, // Guests are not beta members
       queriesRemaining: 3,
       maxQueries: 3,
     }
@@ -85,8 +89,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const joinBeta = async (email: string, name: string) => {
+    // In a real app, this would make an API call to register for beta
+    // For demo purposes, we'll just update the user
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
+
+    if (user) {
+      setUser({
+        ...user,
+        email,
+        name,
+        isGuest: false,
+        isBetaMember: true,
+        queriesRemaining: 10,
+        maxQueries: 10,
+      })
+    }
+  }
+
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, registerGuest, decrementQueries }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, registerGuest, decrementQueries, joinBeta }}>
       {children}
     </UserContext.Provider>
   )
