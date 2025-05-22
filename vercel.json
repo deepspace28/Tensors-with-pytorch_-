@@ -10,8 +10,5 @@
     }
   },
   "crons": [],
-  "regions": ["iad1"],
-  "python": {
-    "version": "3.9"
-  }
+  "regions": ["iad1"]
 }
