@@ -3,6 +3,7 @@ export interface Message {
   role: "user" | "assistant" | "system"
   content: string
   timestamp: Date
+  isPlaceholder?: boolean
 }
 
 export interface Conversation {
@@ -106,6 +107,23 @@ export const ConversationStorage = {
     if (conversation.messages.length === 1 && message.role === "user") {
       conversation.title = generateTitle(message.content)
     }
+
+    // Save to localStorage
+    localStorage.setItem("synaptiq-conversations", JSON.stringify(conversations.map(serializeConversation)))
+  },
+
+  // Update an existing message in a conversation
+  updateMessage(conversationId: string, messageId: string, updates: Partial<Message>): void {
+    const conversations = this.getAll()
+    const conversation = conversations.find((c) => c.id === conversationId)
+
+    if (!conversation) return
+
+    // Find and update the message
+    conversation.messages = conversation.messages.map((msg) => (msg.id === messageId ? { ...msg, ...updates } : msg))
+
+    // Update lastUpdated
+    conversation.lastUpdated = new Date()
 
     // Save to localStorage
     localStorage.setItem("synaptiq-conversations", JSON.stringify(conversations.map(serializeConversation)))

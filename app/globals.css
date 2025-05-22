@@ -27,21 +27,41 @@
   }
 }
 
-/* Fix for unwanted scrolling on form submission */
+/* Fix for unwanted scrolling on form submission - only for chat page */
 html {
   scroll-behavior: smooth;
   height: 100%;
-  overflow-anchor: auto;
 }
 
 body {
   min-height: 100%;
+}
+
+/* Chat page specific styles */
+.chat-layout {
   overflow-anchor: auto;
+  overscroll-behavior-y: none;
+}
+
+.chat-layout body {
+  position: fixed;
+  width: 100%;
+  height: 100%;
 }
 
 /* Prevent scroll anchoring issues */
 .overflow-anchor-none {
   overflow-anchor: none;
+}
+
+/* Hide scrollbar but allow scrolling */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* Scientific simulation dracula theme */

@@ -3,10 +3,13 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
-
 import { Button } from "@/components/ui/button"
 
-export function HeroSection() {
+interface HeroSectionProps {
+  onJoinBeta?: () => void
+}
+
+export function HeroSection({ onJoinBeta }: HeroSectionProps) {
   return (
     <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background via-background/95 to-background/90 overflow-hidden">
       {/* Abstract background pattern */}
@@ -58,18 +61,21 @@ export function HeroSection() {
             transition={{ duration: 0.5, delay: 0.4 }}
             className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 py-6 h-auto">
-              <Link href="/demo">
+            {/* Try Demo button - LEFT, WHITE */}
+            <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-6 h-auto">
+              <Link href="/demo" className="flex items-center">
                 Try Demo <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
+
+            {/* Request Beta Access button - RIGHT, DARK */}
             <Button
-              variant="outline"
-              size="lg"
               asChild
-              className="border-primary/20 hover:bg-primary/10 text-lg px-8 py-6 h-auto"
+              size="lg"
+              variant="outline"
+              className="border-gray-700 text-white hover:bg-gray-800 text-lg px-8 py-6 h-auto"
             >
-              <Link href="/beta-access">Request Beta Access</Link>
+              <Link href="/beta">Request Beta Access</Link>
             </Button>
           </motion.div>
           <motion.div

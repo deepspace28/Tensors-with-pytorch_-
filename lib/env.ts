@@ -19,6 +19,7 @@ export const clientEnv = {
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
   FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "",
+  GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY || "",
 }
 
 // Validate that required environment variables are set
@@ -26,8 +27,8 @@ export function validateEnv() {
   const missingVars = []
 
   // Check server-side variables
-  if (!serverEnv.GROQ_API_KEY) {
-    missingVars.push("GROQ_API_KEY")
+  if (!serverEnv.GROQ_API_KEY && !clientEnv.GROQ_API_KEY) {
+    missingVars.push("GROQ_API_KEY or NEXT_PUBLIC_GROQ_API_KEY")
   }
 
   // Check client-side variables
@@ -66,7 +67,7 @@ export function isDemoMode() {
 // Get API key - SERVER SIDE ONLY
 // This function should only be called in server components or API routes
 export function getApiKey() {
-  return serverEnv.GROQ_API_KEY
+  return serverEnv.GROQ_API_KEY || clientEnv.GROQ_API_KEY || ""
 }
 
 // For backward compatibility
@@ -80,7 +81,7 @@ export const ENV = {
   DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE === "true",
 
   // API Keys (server-side only)
-  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+  GROQ_API_KEY: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || "",
   GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || "",
   SEARCH_ENGINE_ID: process.env.SEARCH_ENGINE_ID || "",
 
@@ -105,4 +106,5 @@ export const PUBLIC_ENV = {
   FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG === "true",
   DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE === "true",
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
+  GROQ_API_KEY: process.env.NEXT_PUBLIC_GROQ_API_KEY || "",
 }

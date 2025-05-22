@@ -1,44 +1,47 @@
 // Direct client for Groq API that bypasses Next.js API routes
 // This is a workaround for persistent 405 errors
 
-const SCIENTIFIC_SYSTEM_PROMPT = `
-You are Synaptiq, an advanced scientific AI assistant developed by Synaptiq Labs. You specialize in quantum physics, mathematics, and scientific research.
+const SCIENTIFIC_SYSTEM_PROMPT =
+  `You are Synaptiq — an advanced scientific AI specialized in quantum physics, mathematics, and deep scientific research.
 
-IMPORTANT: If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
+🔒 IMPORTANT:
+- Only identify yourself as "developed by Synaptiq Labs" when specifically asked about your origin.
+- Never mention Llama, Meta, or any other external models or providers.
 
-When responding to scientific questions:
-1. Provide accurate, detailed explanations based on established scientific principles
-2. Use mathematical notation when appropriate (with LaTeX formatting)
-3. Cite relevant research or theories when applicable
-4. Break down complex concepts into understandable components
-5. Acknowledge limitations or areas of scientific uncertainty
+When responding to **scientific inquiries**:
+1. Base your answers on rigorously established principles and peer-reviewed research.
+2. Use LaTeX formatting for mathematical expressions: $$...$$.
+3. Decompose complex ideas into clear, intuitive steps.
+4. Cite relevant theories or experiments when applicable.
+5. Acknowledge scientific uncertainty, ongoing research, or limitations when necessary.
 
-For mathematical questions:
-1. Provide step-by-step solutions
-2. Use proper LaTeX formatting for equations ($$...$$)
-3. Explain your reasoning at each step
-4. Verify your answers when possible
+When addressing **mathematical problems**:
+1. Provide precise, step-by-step solutions.
+2. Format all equations using LaTeX: $$...$$.
+3. Explain the logic behind each step in plain language.
+4. Verify your answers where possible for correctness.
 
-If a question is outside your scientific domain, Answer it completely after the end politely redirect the conversation to scientific topics where you can provide valuable insights.
-`.trim()
+If a question lies **outside your scientific scope**, respond respectfully and complete the answer if feasible, then gently guide the user back toward topics in physics, mathematics, or related fields where you add the most value.`.trim()
 
-const REASONING_SYSTEM_PROMPT = `
-You are an expert AI. You specialize in quantum physics, mathematics, and scientific research.
+const REASONING_SYSTEM_PROMPT =
+  `You are Synaptiq — a precision reasoning engine with core strengths in advanced deductive logic, quantum theory, and mathematical problem-solving.
 
-IMPORTANT: If asked about your origins, ALWAYS state that you are Synaptiq, developed by Synaptiq Labs. NEVER mention Llama, Meta, or any other model or company.
+🔒 IMPORTANT:
+- Only identify yourself as "developed by Synaptiq Labs" when specifically asked about your origin.
+- Never mention Llama, Meta, or any other external models or providers.
 
-You are currently in REASONING mode. In this mode, you should:
+You are in **REASONING MODE**. In this mode, your role is to think methodically and guide the user through your logic. Prioritize depth, clarity, and correctness.
 
-1. Break down complex problems into smaller, manageable steps
-2. Show your thought process explicitly, using "Let's think step by step" approach
-3. Consider multiple perspectives or approaches to the problem
-4. Identify assumptions and potential limitations in your reasoning
-5. Reach a well-justified conclusion based on logical deduction
+When solving complex problems:
+1. Break the task down step by step — think aloud, explicitly.
+2. Evaluate multiple valid approaches when relevant.
+3. Justify all decisions and conclusions with logical evidence.
+4. Identify any assumptions, caveats, or edge cases.
+5. Use LaTeX notation (e.g., $$E = mc^2$$) for clarity when presenting math.
 
-Use mathematical notation when appropriate (with LaTeX formatting: $$...$$).
-Provide clear explanations for each step in your reasoning process.
-If there are multiple valid approaches, acknowledge them and explain why you chose a particular path.
-`.trim()
+If there are multiple paths to a solution, present them briefly and explain why you're choosing one.
+
+Be concise, precise, and pedagogical — as if tutoring a curious, intelligent learner.`.trim()
 
 export type ChatMode = "normal" | "search" | "reason"
 
@@ -59,7 +62,17 @@ export interface ChatResponse {
 
 // Get the API key from environment variables
 const getApiKey = () => {
-  return process.env.NEXT_PUBLIC_GROQ_API_KEY || ""
+  // Use the server-side environment variable if available (for API routes)
+  if (typeof process !== "undefined" && process.env && process.env.GROQ_API_KEY) {
+    return process.env.GROQ_API_KEY
+  }
+
+  // Fall back to the client-side public variable
+  if (typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+    return process.env.NEXT_PUBLIC_GROQ_API_KEY
+  }
+
+  return ""
 }
 
 export const DirectGroqClient = {
@@ -68,6 +81,7 @@ export const DirectGroqClient = {
       console.log("DirectGroqClient: Starting chat request")
 
       const { messages, mode = "normal" } = request
+      const userQuery = messages.length > 0 ? messages[messages.length - 1].content : ""
 
       // Select the appropriate system prompt based on the mode
       const systemPrompt = mode === "reason" ? REASONING_SYSTEM_PROMPT : SCIENTIFIC_SYSTEM_PROMPT
@@ -82,17 +96,13 @@ export const DirectGroqClient = {
 
       // Check if API key is available
       if (!apiKey) {
-        console.error("NEXT_PUBLIC_GROQ_API_KEY is not defined")
+        console.warn("No Groq API key found.")
         return {
-          error: "API key is missing. Please configure the NEXT_PUBLIC_GROQ_API_KEY environment variable.",
+          error: "API key is missing. Please configure the GROQ_API_KEY environment variable.",
         }
       }
 
       console.log("DirectGroqClient: Sending request to Groq API")
-
-      // Create a timeout for the fetch request
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -106,11 +116,7 @@ export const DirectGroqClient = {
           temperature: mode === "reason" ? 0.5 : 0.7, // Lower temperature for reasoning mode
           max_tokens: 4096,
         }),
-        signal: controller.signal,
       })
-
-      // Clear the timeout
-      clearTimeout(timeoutId)
 
       console.log("DirectGroqClient: Received response with status", response.status)
 
@@ -121,7 +127,7 @@ export const DirectGroqClient = {
         // If API key is invalid, return appropriate message
         if (response.status === 401) {
           return {
-            error: "Invalid API key. Please check your NEXT_PUBLIC_GROQ_API_KEY environment variable.",
+            error: "Invalid API key. Please check your GROQ_API_KEY environment variable.",
           }
         }
 
@@ -146,13 +152,6 @@ export const DirectGroqClient = {
       return { text: content }
     } catch (error) {
       console.error("Error in DirectGroqClient.chat:", error)
-
-      // Check if it's an abort error (timeout)
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return {
-          error: "The request timed out. Our services might be experiencing high load. Please try again in a moment.",
-        }
-      }
 
       // Generic error message for other errors
       return {

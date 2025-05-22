@@ -27,7 +27,7 @@ export function AboutSynaptiqEnhanced() {
           <Button
             asChild
             size="lg"
-            className="mt-4 px-8 py-6 text-lg h-auto border border-foreground/10 bg-background hover:bg-foreground/5"
+            className="mt-4 px-8 py-6 text-lg h-auto bg-white text-black hover:bg-gray-200 font-medium"
           >
             <Link href="/about" className="flex items-center">
               Learn More About Us <ArrowRight className="ml-2 h-5 w-5" />
