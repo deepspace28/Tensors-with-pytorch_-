@@ -51,6 +51,7 @@ const corsHeaders = {
 
 // Handle OPTIONS requests for CORS preflight
 export async function OPTIONS() {
+  console.log("OPTIONS request received")
   return new NextResponse(null, {
     status: 204,
     headers: corsHeaders,
@@ -59,22 +60,7 @@ export async function OPTIONS() {
 
 // Handle GET requests
 export async function GET() {
-  return NextResponse.json(
-    { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
-    { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
-  )
-}
-
-// Handle PUT requests
-export async function PUT() {
-  return NextResponse.json(
-    { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
-    { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
-  )
-}
-
-// Handle DELETE requests
-export async function DELETE() {
+  console.log("GET request received - returning 405")
   return NextResponse.json(
     { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
     { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
@@ -83,17 +69,21 @@ export async function DELETE() {
 
 // Handle POST requests
 export async function POST(req: Request) {
+  console.log("POST request received to /api/chat")
+
   // Add CORS headers to all responses
   const headers = { ...corsHeaders, Allow: "POST, OPTIONS" }
 
   try {
     // Log request information for debugging
     console.log("Chat API request received:", new Date().toISOString())
+    console.log("Request headers:", Object.fromEntries(req.headers.entries()))
 
     // Parse the request body
     let body
     try {
       body = await req.json()
+      console.log("Request body received:", JSON.stringify(body).substring(0, 200) + "...")
     } catch (error) {
       console.error("Failed to parse request body:", error)
       return NextResponse.json(
@@ -126,6 +116,7 @@ export async function POST(req: Request) {
 
     // Get API key from environment variables or headers
     const apiKey = process.env.GROQ_API_KEY || req.headers.get("x-api-key") || ""
+    console.log("API key available:", !!apiKey)
 
     // Check if API key is available
     if (!apiKey) {
@@ -162,6 +153,8 @@ export async function POST(req: Request) {
 
       // Clear the timeout
       clearTimeout(timeoutId)
+
+      console.log("Groq API response status:", response.status)
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "Unknown error")
