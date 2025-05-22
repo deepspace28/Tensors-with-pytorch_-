@@ -1,4 +1,4 @@
-// lib/ai-chat.ts (renamed from groq-chat.ts)
+// lib/groq-chat.ts
 
 import type { Message } from "@/types/chat"
 
@@ -47,7 +47,7 @@ const isScientificLike = (input: string): boolean => {
   return keywords.some((word) => input.toLowerCase().includes(word)) || symbolPattern.test(input)
 }
 
-export async function sendChatRequest(messages: Message[], apiKey: string) {
+export async function sendChatRequest(messages: Message[]) {
   try {
     // Check if the latest user message is scientific-like
     const latestUserMessage = [...messages].reverse().find((m) => m.role === "user")

@@ -15,7 +15,6 @@ import {
   MoreVertical,
   AlertTriangle,
   Lock,
-  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -62,17 +61,15 @@ export function SynaptiqChat() {
   const [betaEmail, setBetaEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [hasPendingBetaRequest, setHasPendingBetaRequest] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const { user, requestBetaAccess } = useUser()
+  const { user, joinBeta } = useUser()
 
   // Check if user is a beta member
-  const isBetaMember = user && !user.isGuest && user.isBetaMember
+  const isBetaMember = user && !user.isGuest
 
   // Check network status
   useEffect(() => {
@@ -92,13 +89,6 @@ export function SynaptiqChat() {
       window.removeEventListener("offline", handleOffline)
     }
   }, [])
-
-  // Check if user has a pending beta request
-  useEffect(() => {
-    if (user) {
-      setHasPendingBetaRequest(user.hasPendingBetaRequest || false)
-    }
-  }, [user])
 
   // Load conversations on mount
   useEffect(() => {
@@ -127,9 +117,7 @@ export function SynaptiqChat() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (messagesEndRef.current && messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [currentConversation?.messages])
 
   // Focus input after sending message
@@ -145,20 +133,6 @@ export function SynaptiqChat() {
       setChatMode("normal")
     }
   }, [isBetaMember, chatMode])
-
-  // Prevent body scrolling
-  useEffect(() => {
-    // Save original styles
-    const originalStyle = window.getComputedStyle(document.body).overflow
-
-    // Disable scrolling on body
-    document.body.style.overflow = "hidden"
-
-    // Cleanup function to restore original styles
-    return () => {
-      document.body.style.overflow = originalStyle
-    }
-  }, [])
 
   const createNewConversation = () => {
     const newConv = ConversationStorage.create()
@@ -215,6 +189,9 @@ export function SynaptiqChat() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Store current scroll position
+    const scrollPosition = window.scrollY
 
     // Prevent default form behavior
     e.stopPropagation()
@@ -379,6 +356,9 @@ In the meantime, I can still try to help with basic questions using my core know
       setConversations(ConversationStorage.getAll())
     } finally {
       setIsLoading(false)
+
+      // Restore scroll position
+      setTimeout(() => window.scrollTo(0, scrollPosition), 0)
     }
   }
 
@@ -394,12 +374,11 @@ In the meantime, I can still try to help with basic questions using my core know
     setIsSubmitting(true)
 
     try {
-      // Call the requestBetaAccess function from the user context
-      await requestBetaAccess(betaEmail, betaName)
+      // Call the joinBeta function from the user context
+      await joinBeta(betaEmail, betaName)
       setIsSubmitted(true)
-      setHasPendingBetaRequest(true)
     } catch (error) {
-      console.error("Failed to submit beta request:", error)
+      console.error("Failed to join beta:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -462,9 +441,9 @@ In the meantime, I can still try to help with basic questions using my core know
     .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
 
   return (
-    <div className="flex flex-col h-full bg-[#0f0f0f] text-white">
+    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white">
       {/* Header */}
-      <header className="border-b border-[#2a2a2a] p-2 flex-shrink-0 z-10">
+      <header className="border-b border-[#2a2a2a] p-2">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center space-x-2 pl-0 md:pl-0">
             <ScientificLogo className="h-6 w-6 text-white" />
@@ -475,17 +454,17 @@ In the meantime, I can still try to help with basic questions using my core know
 
       {/* Offline warning */}
       {showOfflineMessage && (
-        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm flex-shrink-0 z-10">
+        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
           <AlertTriangle className="inline-block h-4 w-4 mr-2" />
           You are currently offline. Some features may be unavailable.
         </div>
       )}
 
       {/* Main content */}
-      <main className="flex flex-1 overflow-hidden relative">
+      <main className="flex-1 overflow-hidden flex">
         {/* Sidebar */}
-        <div className="w-64 border-r border-[#2a2a2a] bg-[#1a1a1a] hidden md:flex md:flex-col overflow-hidden absolute left-0 top-0 bottom-0 z-10">
-          <div className="p-3 flex-shrink-0">
+        <div className="w-64 border-r border-[#2a2a2a] bg-[#1a1a1a] hidden md:block">
+          <div className="p-3">
             <Button
               variant="outline"
               className="w-full justify-start bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]"
@@ -496,215 +475,213 @@ In the meantime, I can still try to help with basic questions using my core know
             </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {todayConversations.length > 0 && (
-              <>
-                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Today</div>
-                <div className="space-y-1 px-2 mb-4">
-                  {todayConversations.map((conv) => (
-                    <div key={conv.id} className="relative group">
-                      <button
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                        )}
-                        onClick={() => switchConversation(conv.id)}
-                      >
-                        {editingTitle === conv.id ? (
-                          <input
-                            type="text"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                updateConversationTitle(conv.id, newTitle)
-                              }
+          {todayConversations.length > 0 && (
+            <>
+              <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Today</div>
+              <div className="space-y-1 px-2 mb-4">
+                {todayConversations.map((conv) => (
+                  <div key={conv.id} className="relative group">
+                    <button
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                        currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                      )}
+                      onClick={() => switchConversation(conv.id)}
+                    >
+                      {editingTitle === conv.id ? (
+                        <input
+                          type="text"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateConversationTitle(conv.id, newTitle)
+                            }
+                          }}
+                          className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        conv.title
+                      )}
+                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] cursor-pointer"
+                            onClick={() => {
+                              setEditingTitle(conv.id)
+                              setNewTitle(conv.title)
                             }}
-                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          conv.title
-                        )}
-                      </button>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] cursor-pointer"
-                              onClick={() => {
-                                setEditingTitle(conv.id)
-                                setNewTitle(conv.title)
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                              onClick={() => setDeleteConfirmId(conv.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                            onClick={() => setDeleteConfirmId(conv.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
-            {yesterdayConversations.length > 0 && (
-              <>
-                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Yesterday</div>
-                <div className="space-y-1 px-2 mb-4">
-                  {yesterdayConversations.map((conv) => (
-                    <div key={conv.id} className="relative group">
-                      <button
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                        )}
-                        onClick={() => switchConversation(conv.id)}
-                      >
-                        {editingTitle === conv.id ? (
-                          <input
-                            type="text"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                updateConversationTitle(conv.id, newTitle)
-                              }
+          {yesterdayConversations.length > 0 && (
+            <>
+              <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Yesterday</div>
+              <div className="space-y-1 px-2 mb-4">
+                {yesterdayConversations.map((conv) => (
+                  <div key={conv.id} className="relative group">
+                    <button
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                        currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                      )}
+                      onClick={() => switchConversation(conv.id)}
+                    >
+                      {editingTitle === conv.id ? (
+                        <input
+                          type="text"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateConversationTitle(conv.id, newTitle)
+                            }
+                          }}
+                          className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        conv.title
+                      )}
+                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] cursor-pointer"
+                            onClick={() => {
+                              setEditingTitle(conv.id)
+                              setNewTitle(conv.title)
                             }}
-                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          conv.title
-                        )}
-                      </button>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] cursor-pointer"
-                              onClick={() => {
-                                setEditingTitle(conv.id)
-                                setNewTitle(conv.title)
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                              onClick={() => setDeleteConfirmId(conv.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                            onClick={() => setDeleteConfirmId(conv.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
-            {olderConversations.length > 0 && (
-              <>
-                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Previous 7 Days</div>
-                <div className="space-y-1 px-2">
-                  {olderConversations.map((conv) => (
-                    <div key={conv.id} className="relative group">
-                      <button
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                        )}
-                        onClick={() => switchConversation(conv.id)}
-                      >
-                        {editingTitle === conv.id ? (
-                          <input
-                            type="text"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                updateConversationTitle(conv.id, newTitle)
-                              }
+          {olderConversations.length > 0 && (
+            <>
+              <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Previous 7 Days</div>
+              <div className="space-y-1 px-2">
+                {olderConversations.map((conv) => (
+                  <div key={conv.id} className="relative group">
+                    <button
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                        currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                      )}
+                      onClick={() => switchConversation(conv.id)}
+                    >
+                      {editingTitle === conv.id ? (
+                        <input
+                          type="text"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateConversationTitle(conv.id, newTitle)
+                            }
+                          }}
+                          className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        conv.title
+                      )}
+                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] cursor-pointer"
+                            onClick={() => {
+                              setEditingTitle(conv.id)
+                              setNewTitle(conv.title)
                             }}
-                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          conv.title
-                        )}
-                      </button>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] cursor-pointer"
-                              onClick={() => {
-                                setEditingTitle(conv.id)
-                                setNewTitle(conv.title)
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                              onClick={() => setDeleteConfirmId(conv.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                            onClick={() => setDeleteConfirmId(conv.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0 md:ml-64">
+        <div className="flex-1 flex flex-col max-h-full overflow-hidden">
           {/* Messages */}
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 messages-container">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {!currentConversation || currentConversation.messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-8">
                 <h2 className="text-3xl font-medium mb-2">What can I help with?</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mt-8">
                   <div
                     className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
                     onClick={() => setInput("Explain quantum entanglement")}
@@ -795,7 +772,7 @@ In the meantime, I can still try to help with basic questions using my core know
           </div>
 
           {/* Input area */}
-          <div className="p-4 border-t border-[#2a2a2a] bg-[#0f0f0f] flex-shrink-0 z-10">
+          <div className="p-4">
             <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
               <div className="relative rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] focus-within:border-[#5a5a5a]">
                 <Textarea
@@ -987,22 +964,8 @@ In the meantime, I can still try to help with basic questions using my core know
             </DialogDescription>
           </DialogHeader>
 
-          {/* Show pending request message if user already has a pending request */}
-          {hasPendingBetaRequest ? (
-            <div className="py-8 text-center">
-              <div className="mx-auto h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
-                <Clock className="text-blue-400 h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Beta Request Pending</h3>
-              <p className="text-gray-400 mb-6">
-                Your request to join the beta program is currently being reviewed. We'll notify you when you're
-                approved.
-              </p>
-              <Button onClick={() => setShowBetaModal(false)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Got it
-              </Button>
-            </div>
-          ) : !isSubmitting && !isSubmitted ? (
+          {/* Beta signup form */}
+          {!isSubmitting && !isSubmitted ? (
             <form onSubmit={handleBetaSignup} className="py-4 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="beta-name">Full Name</Label>
@@ -1029,14 +992,14 @@ In the meantime, I can still try to help with basic questions using my core know
                 />
               </div>
 
-              <div className="bg-black p-4 rounded-lg border border-gray-800 mt-4">
+              <div className="bg-[#1a1a1a] p-4 rounded-lg border border-[#3a3a3a] mt-4">
                 <h3 className="font-medium mb-2">Beta Program Benefits:</h3>
                 <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Web search capabilities</li>
                   <li>Advanced reasoning for complex problems</li>
                   <li>Interactive scientific simulations</li>
                   <li>Early access to new features</li>
                   <li>Higher usage limits</li>
-                  <li>Custom quantum experiments</li>
                 </ul>
               </div>
 
@@ -1050,7 +1013,7 @@ In the meantime, I can still try to help with basic questions using my core know
                   Maybe Later
                 </Button>
                 <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
-                  Request Beta Access
+                  Join Beta Program
                 </Button>
               </DialogFooter>
             </form>
@@ -1091,13 +1054,25 @@ In the meantime, I can still try to help with basic questions using my core know
                   <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-2">Request Submitted!</h3>
+              <h3 className="text-xl font-bold mb-2">Welcome to the Beta Program!</h3>
               <p className="text-gray-400 mb-6">
-                Thank you for your interest in the beta program. We'll review your request and notify you when you're
-                approved.
+                You now have access to all beta features including Search, Reason, and Simulations.
               </p>
-              <Button onClick={() => setShowBetaModal(false)} className="bg-purple-600 hover:bg-purple-700 text-white">
-                Continue
+              <Button
+                onClick={() => {
+                  setShowBetaModal(false)
+                  // If the user was trying to use a specific feature, enable it now
+                  if (betaFeatureAttempted === "Search") {
+                    setChatMode("search")
+                  } else if (betaFeatureAttempted === "Reason") {
+                    setChatMode("reason")
+                  } else if (betaFeatureAttempted === "Simulations") {
+                    router.push("/simulations")
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Start Using Beta Features
               </Button>
             </div>
           )}
@@ -1107,5 +1082,5 @@ In the meantime, I can still try to help with basic questions using my core know
   )
 }
 
-// Export as default
+// Make sure to export the component as default as well
 export default SynaptiqChat

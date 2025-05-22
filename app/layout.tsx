@@ -6,7 +6,6 @@ import { Inter, IBM_Plex_Sans } from "next/font/google"
 import { siteConfig } from "@/config/site"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/theme-provider"
-import { UserProvider } from "@/contexts/user-context"
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" })
 const ibmPlexSans = IBM_Plex_Sans({
@@ -66,7 +65,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon-16x16.png",
     apple: "/apple-touch-icon.png",
   },
-  generator: "v0.dev",
+    generator: 'v0.dev'
 }
 
 export const viewport: Viewport = {
@@ -94,7 +93,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable, ibmPlexSans.variable)}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          <UserProvider>{children}</UserProvider>
+          {children}
         </ThemeProvider>
       </body>
     </html>

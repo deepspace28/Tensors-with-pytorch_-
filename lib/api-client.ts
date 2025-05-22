@@ -33,17 +33,17 @@ export const ApiClient = {
     }
   },
 
-  // Use server API route instead of direct API access
+  // Use server API route instead of direct Groq API access
   async getModelResponse(messages: any[], options: any = {}) {
     try {
-      const response = await fetch(`${this.getBaseUrl()}/ai-completion`, {
+      const response = await fetch(`${this.getBaseUrl()}/secure-groq`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           messages,
-          model: options.model || "default",
+          model: options.model || "llama2-70b-4096",
           temperature: options.temperature || 0.7,
           max_tokens: options.maxTokens || 4096,
         }),

@@ -22,7 +22,6 @@ const config = {
       fontFamily: {
         sans: ["var(--font-inter)", "var(--font-ibm-plex)", "sans-serif"],
         mono: ["Menlo", "Monaco", "Consolas", "monospace"],
-        serif: ["Georgia", "Times New Roman", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -77,49 +76,6 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-      },
-      typography: {
-        DEFAULT: {
-          css: {
-            maxWidth: "760px",
-            color: "var(--foreground)",
-            h1: {
-              fontWeight: "700",
-              marginTop: "2rem",
-              marginBottom: "1rem",
-            },
-            h2: {
-              fontWeight: "600",
-              marginTop: "1.75rem",
-              marginBottom: "0.75rem",
-            },
-            h3: {
-              fontWeight: "600",
-              marginTop: "1.5rem",
-              marginBottom: "0.5rem",
-            },
-            code: {
-              fontWeight: "400",
-              borderRadius: "0.25rem",
-              padding: "0.15rem 0.3rem",
-              backgroundColor: "var(--muted)",
-            },
-            pre: {
-              backgroundColor: "var(--muted)",
-              borderRadius: "0.5rem",
-              padding: "1rem",
-              overflowX: "auto",
-            },
-            a: {
-              color: "var(--primary)",
-              textDecoration: "underline",
-              textUnderlineOffset: "2px",
-              "&:hover": {
-                color: "var(--primary-foreground)",
-              },
-            },
-          },
-        },
       },
     },
   },

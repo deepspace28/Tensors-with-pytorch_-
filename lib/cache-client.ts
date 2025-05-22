@@ -10,6 +10,11 @@ function createCacheClient() {
   try {
     // Try to create Redis client
     if (process.env.REDIS_URL) {
+      // Clean up the Redis URL to remove any potential URL encoding issues
+      const redisUrl = process.env.REDIS_URL.trim()
+
+      console.log("Connecting to Redis...")
+
       const redisOptions = {
         enableReadyCheck: true,
         maxRetriesPerRequest: 3,
@@ -17,9 +22,11 @@ function createCacheClient() {
           // Exponential backoff with max 3 seconds
           return Math.min(times * 100, 3000)
         },
+        // Disable TLS if not needed, or configure it properly
+        tls: redisUrl.startsWith("rediss://") ? { rejectUnauthorized: false } : undefined,
       }
 
-      const redis = new Redis(process.env.REDIS_URL, redisOptions)
+      const redis = new Redis(redisUrl, redisOptions)
 
       // Handle connection errors
       redis.on("error", (err) => {
@@ -36,8 +43,8 @@ function createCacheClient() {
           console.log("Redis connection successful")
           cacheClient = redis
         })
-        .catch(() => {
-          console.warn("Redis ping failed, using memory cache")
+        .catch((err) => {
+          console.warn("Redis ping failed, using memory cache:", err.message)
           cacheClient = new MemoryCache()
         })
 

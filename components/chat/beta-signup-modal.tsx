@@ -25,9 +25,6 @@ interface BetaSignupModalProps {
 export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSignupModalProps) {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
-  const [organization, setOrganization] = useState("")
-  const [role, setRole] = useState("")
-  const [researchInterest, setResearchInterest] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -58,7 +55,7 @@ export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-black border-gray-800 text-white sm:max-w-[425px]">
+      <DialogContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Join the Beta Program</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -67,7 +64,7 @@ export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSi
         </DialogHeader>
         {success ? (
           <div className="py-6 text-center">
-            <div className="mb-4 text-white text-xl">✓</div>
+            <div className="mb-4 text-green-400 text-xl">✓</div>
             <h3 className="text-lg font-medium mb-2">Thank you for signing up!</h3>
             <p className="text-gray-400">
               We've received your request to join the beta program. You'll be redirected to the beta information page.
@@ -77,12 +74,12 @@ export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSi
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="bg-black border-gray-800 text-white"
+                  className="bg-[#1a1a1a] border-[#3a3a3a] text-white"
                   required
                 />
               </div>
@@ -93,37 +90,7 @@ export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSi
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-black border-gray-800 text-white"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="organization">Organization</Label>
-                <Input
-                  id="organization"
-                  value={organization}
-                  onChange={(e) => setOrganization(e.target.value)}
-                  className="bg-black border-gray-800 text-white"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="bg-black border-gray-800 text-white"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="research-interest">Research Interest</Label>
-                <Input
-                  id="research-interest"
-                  value={researchInterest}
-                  onChange={(e) => setResearchInterest(e.target.value)}
-                  className="bg-black border-gray-800 text-white"
+                  className="bg-[#1a1a1a] border-[#3a3a3a] text-white"
                   required
                 />
               </div>
@@ -134,11 +101,11 @@ export function BetaSignupModal({ open, onOpenChange, featureAttempted }: BetaSi
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="bg-transparent border-gray-800 text-white hover:bg-gray-900"
+                className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a]"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-white hover:bg-gray-200 text-black">
+              <Button type="submit" disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700 text-white">
                 {isSubmitting ? "Submitting..." : "Join Beta"}
               </Button>
             </DialogFooter>
