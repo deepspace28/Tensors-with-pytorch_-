@@ -44,8 +44,9 @@ If there are multiple valid approaches, acknowledge them and explain why you cho
 // CORS headers for all responses
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+  "Access-Control-Max-Age": "86400",
 }
 
 // Handle OPTIONS requests for CORS preflight
@@ -202,7 +203,7 @@ export async function POST(req: Request) {
       {
         text: "I apologize, but I encountered an unexpected error while processing your request. Please try again later.",
       },
-      { status: 200, headers },
+      { status: 200, headers: corsHeaders },
     )
   }
 }

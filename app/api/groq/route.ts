@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
 
+// CORS headers for all responses
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+  "Access-Control-Max-Age": "86400",
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  })
+}
+
 export async function POST(request: Request) {
   try {
     // Get the API key from environment variables - server-side only
@@ -9,7 +25,7 @@ export async function POST(request: Request) {
     if (!GROQ_API_KEY) {
       logger.error("GROQ_API_KEY is not configured")
       // Return a mock response instead of an error
-      return NextResponse.json(mockGroqResponse(), { status: 200 })
+      return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
     }
 
     // Parse the request body
@@ -18,13 +34,13 @@ export async function POST(request: Request) {
       requestData = await request.json()
     } catch (error) {
       logger.error("Failed to parse request body", { error })
-      return NextResponse.json(mockGroqResponse(), { status: 200 })
+      return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
     }
 
     // Validate the request data
     if (!requestData.messages || !Array.isArray(requestData.messages)) {
       logger.error("Invalid request: messages array is required", { requestData })
-      return NextResponse.json(mockGroqResponse(), { status: 200 })
+      return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
     }
 
     // Use a default model that we know exists
@@ -51,21 +67,21 @@ export async function POST(request: Request) {
       if (!groqResponse.ok) {
         logger.error(`Groq API error: ${groqResponse.status}`)
         // Return a mock response instead of an error
-        return NextResponse.json(mockGroqResponse(), { status: 200 })
+        return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
       }
 
       // Return the Groq API response
       const data = await groqResponse.json()
-      return NextResponse.json(data)
+      return NextResponse.json(data, { headers: corsHeaders })
     } catch (fetchError) {
       logger.error("Error fetching from Groq API", { error: fetchError })
       // Return a mock response instead of an error
-      return NextResponse.json(mockGroqResponse(), { status: 200 })
+      return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
     }
   } catch (error) {
     logger.error("Unexpected error in groq API route", { error })
     // Return a mock response instead of an error
-    return NextResponse.json(mockGroqResponse(), { status: 200 })
+    return NextResponse.json(mockGroqResponse(), { status: 200, headers: corsHeaders })
   }
 }
 

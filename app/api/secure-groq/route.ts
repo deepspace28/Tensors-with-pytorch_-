@@ -2,6 +2,22 @@
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
 
+// CORS headers for all responses
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+  "Access-Control-Max-Age": "86400",
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  })
+}
+
 export async function POST(request: Request) {
   try {
     // Validate that we have the API key
@@ -10,7 +26,7 @@ export async function POST(request: Request) {
       logger.error("GROQ_API_KEY is not configured")
       return NextResponse.json(
         { error: "API key not configured. Please set the GROQ_API_KEY environment variable." },
-        { status: 500 },
+        { status: 500, headers: corsHeaders },
       )
     }
 
@@ -20,13 +36,13 @@ export async function POST(request: Request) {
       requestData = await request.json()
     } catch (error) {
       logger.error("Failed to parse request body", { error })
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: corsHeaders })
     }
 
     // Validate the request data
     if (!requestData.messages || !Array.isArray(requestData.messages)) {
       logger.error("Invalid request: messages array is required", { requestData })
-      return NextResponse.json({ error: "messages array is required" }, { status: 400 })
+      return NextResponse.json({ error: "messages array is required" }, { status: 400, headers: corsHeaders })
     }
 
     // Use a default model if not specified
@@ -57,24 +73,24 @@ export async function POST(request: Request) {
       if (groqResponse.status === 404 || errorText.includes("model not found")) {
         return NextResponse.json(
           { error: `Model '${model}' not found. Try using 'llama3-8b' or 'mixtral-8x7b-32768' instead.` },
-          { status: 404 },
+          { status: 404, headers: corsHeaders },
         )
       }
 
       return NextResponse.json(
         { error: `Groq API error: ${groqResponse.status}`, details: errorText },
-        { status: groqResponse.status },
+        { status: groqResponse.status, headers: corsHeaders },
       )
     }
 
     // Return the Groq API response
     const data = await groqResponse.json()
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: corsHeaders })
   } catch (error) {
     logger.error("Unexpected error in secure-groq API route", { error })
     return NextResponse.json(
       { error: "An unexpected error occurred", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 },
+      { status: 500, headers: corsHeaders },
     )
   }
 }

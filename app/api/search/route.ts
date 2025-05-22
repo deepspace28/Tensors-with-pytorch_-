@@ -1,6 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { searchCache } from "@/lib/search-cache"
 
+// CORS headers for all responses
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
+  "Access-Control-Max-Age": "86400",
+}
+
+// Handle OPTIONS requests for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  })
+}
+
 // Fallback search data for when the API is unavailable
 const fallbackSearchData = {
   "quantum mechanics":
@@ -31,7 +47,7 @@ export async function POST(req: NextRequest) {
     const { query } = body
 
     if (!query || typeof query !== "string") {
-      return NextResponse.json({ error: "Invalid query parameter" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid query parameter" }, { status: 400, headers: corsHeaders })
     }
 
     console.log(`Processing search query: "${query}"`)
@@ -44,10 +60,13 @@ export async function POST(req: NextRequest) {
     const cachedResult = await searchCache.get(cacheKey)
     if (cachedResult) {
       console.log(`Cache hit for query: "${query}"`)
-      return NextResponse.json({
-        text: formatSearchResults(query, cachedResult),
-        source: "cache",
-      })
+      return NextResponse.json(
+        {
+          text: formatSearchResults(query, cachedResult),
+          source: "cache",
+        },
+        { headers: corsHeaders },
+      )
     }
 
     // Attempt to use the DuckDuckGo API directly (no proxy)
@@ -82,23 +101,29 @@ export async function POST(req: NextRequest) {
       // Format the search results
       const formattedResults = formatSearchResults(query, enhancedData)
 
-      return NextResponse.json({
-        text: formattedResults,
-        source: "api",
-      })
+      return NextResponse.json(
+        {
+          text: formattedResults,
+          source: "api",
+        },
+        { headers: corsHeaders },
+      )
     } catch (error: any) {
       console.error(`DuckDuckGo API error: ${error.message}`)
 
       // Fall back to local data if DuckDuckGo API fails
       console.log(`Falling back to local data for query: "${query}"`)
-      return NextResponse.json({
-        text: generateFallbackSearchResponse(query),
-        source: "fallback",
-      })
+      return NextResponse.json(
+        {
+          text: generateFallbackSearchResponse(query),
+          source: "fallback",
+        },
+        { headers: corsHeaders },
+      )
     }
   } catch (error: any) {
     console.error(`Unexpected error in search route: ${error.message}`)
-    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 })
+    return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500, headers: corsHeaders })
   }
 }
 
