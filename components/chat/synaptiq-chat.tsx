@@ -39,6 +39,7 @@ import { useUser } from "@/contexts/user-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { DirectGroqClient, type ChatMode as GroqChatMode } from "@/lib/direct-groq-client"
 
 type ChatMode = "normal" | "search" | "reason"
 
@@ -227,59 +228,29 @@ export function SynaptiqChat() {
         throw new Error("You appear to be offline. Please check your internet connection and try again.")
       }
 
-      // Choose the appropriate API endpoint based on the chat mode
-      const endpoint = chatMode === "search" ? "/api/search" : "/api/chat"
+      // Convert messages to the format expected by DirectGroqClient
+      const apiMessages =
+        updatedConversation?.messages.map(({ role, content }) => ({
+          role: role as "user" | "assistant",
+          content,
+        })) || []
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      console.log("Sending chat request with mode:", chatMode)
 
-      // Prepare headers
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      }
-
-      // Proceed with the chat request
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          messages: updatedConversation?.messages.map(({ role, content }) => ({ role, content })) || [],
-          mode: chatMode,
-          query: userMessage.content, // Send the raw query for search mode
-        }),
-        signal: controller.signal,
-        cache: "no-store", // Prevent caching
+      // Use DirectGroqClient instead of fetch
+      const response = await DirectGroqClient.chat({
+        messages: apiMessages,
+        mode: chatMode as GroqChatMode,
       })
 
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error")
-        console.error(`Server returned ${response.status}: ${errorText}`)
-        throw new Error(`Server returned ${response.status}: ${errorText}`)
-      }
-
-      const data = await response.json()
+      console.log("Received response from DirectGroqClient:", response)
 
       // If we have an error message in the response, handle it
-      if (data.error) {
-        throw new Error(data.error)
+      if (response.error) {
+        throw new Error(response.error)
       }
 
-      let responseText = ""
-
-      // Handle different response structures
-      if (data.text) {
-        responseText = data.text
-      } else if (data.choices && data.choices[0] && data.choices[0].message) {
-        responseText = data.choices[0].message.content
-      } else if (data.content) {
-        responseText = data.content
-      } else {
-        // Fallback if no expected response format is found
-        console.error("Unexpected API response structure:", data)
-        responseText = "I received your message, but had trouble processing it. Please try again."
-      }
+      const responseText = response.text || "I received your message, but had trouble processing it. Please try again."
 
       // Reset retry count on successful response
       setRetryCount(0)
