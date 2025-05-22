@@ -57,10 +57,34 @@ export async function OPTIONS() {
   })
 }
 
-// Remove demo mode detection completely
+// Handle GET requests
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
+    { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
+  )
+}
+
+// Handle PUT requests
+export async function PUT() {
+  return NextResponse.json(
+    { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
+    { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
+  )
+}
+
+// Handle DELETE requests
+export async function DELETE() {
+  return NextResponse.json(
+    { error: "Method Not Allowed", message: "This endpoint only accepts POST requests" },
+    { status: 405, headers: { ...corsHeaders, Allow: "POST, OPTIONS" } },
+  )
+}
+
+// Handle POST requests
 export async function POST(req: Request) {
   // Add CORS headers to all responses
-  const headers = { ...corsHeaders }
+  const headers = { ...corsHeaders, Allow: "POST, OPTIONS" }
 
   try {
     // Log request information for debugging
