@@ -2,12 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Button } from "@/components/ui/button"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -16,6 +13,9 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { cn } from "@/lib/utils"
+import { Menu } from "lucide-react"
 import { ScientificLogo } from "@/components/scientific-logo"
 
 const navItems = [
@@ -28,16 +28,8 @@ const navItems = [
     href: "/about",
   },
   {
-    title: "Chat",
-    href: "/chat",
-  },
-  {
-    title: "Simulations",
-    href: "/simulations",
-  },
-  {
-    title: "Docs",
-    href: "/docs",
+    title: "Demo",
+    href: "/demo",
   },
   {
     title: "Contact",
@@ -116,7 +108,7 @@ function DesktopNav({ pathname }: { pathname: string }) {
                     className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
                     href="/features"
                   >
-                    <ScientificLogo variant="simple" className="h-6 w-6 text-primary" />
+                    <ScientificLogo className="h-6 w-6 text-primary" />
                     <div className="mb-2 mt-4 text-lg font-medium">Scientific LLM</div>
                     <p className="text-sm leading-tight text-muted-foreground">
                       Advanced language model trained specifically for scientific research and discovery.
@@ -158,18 +150,6 @@ function DesktopNav({ pathname }: { pathname: string }) {
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link href="/docs" legacyBehavior passHref>
-            <NavigationMenuLink
-              className={cn(
-                "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50",
-                pathname === "/docs" && "bg-accent/50",
-              )}
-            >
-              Docs
-            </NavigationMenuLink>
-          </Link>
-        </NavigationMenuItem>
-        <NavigationMenuItem>
           <Link href="/about" legacyBehavior passHref>
             <NavigationMenuLink
               className={cn(
@@ -178,6 +158,18 @@ function DesktopNav({ pathname }: { pathname: string }) {
               )}
             >
               About
+            </NavigationMenuLink>
+          </Link>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <Link href="/demo" legacyBehavior passHref>
+            <NavigationMenuLink
+              className={cn(
+                "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50",
+                pathname === "/demo" && "bg-accent/50",
+              )}
+            >
+              Demo
             </NavigationMenuLink>
           </Link>
         </NavigationMenuItem>

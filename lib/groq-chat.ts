@@ -1,8 +1,6 @@
-// lib/groq-chat.ts
+// lib/ai-chat.ts (renamed from groq-chat.ts)
 
 import type { Message } from "@/types/chat"
-
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 // Smart input classification logic
 const isScientificLike = (input: string): boolean => {
@@ -58,31 +56,28 @@ export async function sendChatRequest(messages: Message[], apiKey: string) {
       return "I'm designed for scientific domains like physics, mathematics, and quantum mechanics. Please try a question in one of those areas!"
     }
 
-    const response = await fetch(GROQ_API_URL, {
+    // Use our secure API route instead of directly accessing external APIs
+    const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
         messages: messages.map((m) => ({
           role: m.role,
           content: m.content,
         })),
-        temperature: 0.7,
-        max_tokens: 4096,
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`Groq API error: ${response.status}`)
+      throw new Error(`API error: ${response.status}`)
     }
 
     const data = await response.json()
-    return data.choices[0]?.message?.content || ""
+    return data.text || data.content || ""
   } catch (error) {
-    console.error("Error in Groq chat request:", error)
+    console.error("Error in chat request:", error)
     throw error
   }
 }

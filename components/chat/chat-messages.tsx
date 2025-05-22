@@ -29,7 +29,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+    <div className="flex-1 overflow-y-auto p-4 space-y-6 h-full max-h-[calc(100vh-120px)]">
       {messages.map((message) => (
         <div key={message.id} className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}>
           <div

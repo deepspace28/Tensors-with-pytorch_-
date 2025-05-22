@@ -1,122 +1,120 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useState, useEffect, useContext } from "react"
 
-type User = {
+interface User {
   id: string
   name: string
   email: string
-  isGuest: boolean
-  isBetaMember: boolean
-  queriesRemaining: number
-  maxQueries: number
+  hasPendingBetaRequest: boolean
+  betaRequestData: any
 }
 
-type UserContextType = {
+interface UserContextType {
   user: User | null
   setUser: React.Dispatch<React.SetStateAction<User | null>>
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string) => Promise<boolean>
   logout: () => void
-  registerGuest: () => void
-  decrementQueries: () => void
-  joinBeta: (email: string, name: string) => Promise<void>
+  joinBeta: (userData: {
+    name: string
+    email: string
+    organization: string
+    role: string
+    researchInterest: string
+    background: string
+  }) => Promise<boolean>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
+interface UserProviderProps {
+  children: React.ReactNode
+}
+
+export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
 
-  // Check for existing session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("synaptiq-user")
+    // Check if user data exists in local storage on component mount
+    const storedUser = localStorage.getItem("user")
     if (storedUser) {
       setUser(JSON.parse(storedUser))
-    } else {
-      // Register as guest by default
-      registerGuest()
     }
   }, [])
 
-  // Save user to localStorage whenever it changes
   useEffect(() => {
+    // Update local storage whenever the user state changes
     if (user) {
-      localStorage.setItem("synaptiq-user", JSON.stringify(user))
+      localStorage.setItem("user", JSON.stringify(user))
+    } else {
+      localStorage.removeItem("user")
     }
   }, [user])
 
-  const login = async (email: string, password: string) => {
-    // In a real app, this would make an API call to authenticate
-    // For demo purposes, we'll just create a mock user
-    const mockUser: User = {
-      id: "user-123",
-      name: "Researcher",
-      email,
-      isGuest: false,
-      isBetaMember: true, // Beta members are logged in users
-      queriesRemaining: 10,
-      maxQueries: 10,
+  const login = async (email: string) => {
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Simulate user data
+    const newUser: User = {
+      id: "123",
+      name: "Test User",
+      email: email,
+      hasPendingBetaRequest: false,
+      betaRequestData: null,
     }
-    setUser(mockUser)
+
+    setUser(newUser)
+    return true
   }
 
   const logout = () => {
-    localStorage.removeItem("synaptiq-user")
     setUser(null)
-    registerGuest()
   }
 
-  const registerGuest = () => {
-    const guestUser: User = {
-      id: `guest-${Math.random().toString(36).substring(2, 9)}`,
-      name: "Guest",
-      email: "",
-      isGuest: true,
-      isBetaMember: false, // Guests are not beta members
-      queriesRemaining: 3,
-      maxQueries: 3,
-    }
-    setUser(guestUser)
+  // Update the joinBeta function to handle additional fields
+  const joinBeta = async (userData: {
+    name: string
+    email: string
+    organization: string
+    role: string
+    researchInterest: string
+    background: string
+  }) => {
+    // In a real app, this would make an API call
+    // For demo purposes, we'll just update the local state
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Update user state
+    setUser((prev) => {
+      if (!prev) return null
+      return {
+        ...prev,
+        hasPendingBetaRequest: true,
+        betaRequestData: userData,
+      }
+    })
+
+    return true
   }
 
-  const decrementQueries = () => {
-    if (user && user.queriesRemaining > 0) {
-      setUser({
-        ...user,
-        queriesRemaining: user.queriesRemaining - 1,
-      })
-    }
+  const value: UserContextType = {
+    user,
+    setUser,
+    login,
+    logout,
+    joinBeta,
   }
 
-  const joinBeta = async (email: string, name: string) => {
-    // In a real app, this would make an API call to register for beta
-    // For demo purposes, we'll just update the user
-    await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate API call
-
-    if (user) {
-      setUser({
-        ...user,
-        email,
-        name,
-        isGuest: false,
-        isBetaMember: true,
-        queriesRemaining: 10,
-        maxQueries: 10,
-      })
-    }
-  }
-
-  return (
-    <UserContext.Provider value={{ user, setUser, login, logout, registerGuest, decrementQueries, joinBeta }}>
-      {children}
-    </UserContext.Provider>
-  )
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>
 }
 
-export function useUser() {
+export const useUser = () => {
   const context = useContext(UserContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useUser must be used within a UserProvider")
   }
   return context
