@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server"
 import { logger } from "@/lib/logger"
-import { executePythonCode } from "@/lib/python-executor"
-import { generateQiskitCode } from "@/lib/qiskit-generator"
 
-// Define fallback results for when everything fails
+// Define fallback results for simulations
 const FALLBACK_SIMULATION_RESULT = {
-  title: "Quantum Simulation (Fallback)",
-  description: "This is a fallback simulation result when the API is unavailable.",
+  title: "Quantum Simulation (Mock)",
+  description: "This is a mock simulation result since the Python backend has been removed.",
   circuit: `
     q0: ───H───
     q1: ───X───
@@ -21,16 +19,12 @@ const FALLBACK_SIMULATION_RESULT = {
     ],
   },
   insights: [
-    "This is a fallback simulation when the API is unavailable.",
+    "This is a mock simulation since the Python backend has been removed.",
     "In a real simulation, you would see actual quantum computation results.",
   ],
   codeSnippet: `
-# This is a fallback code snippet
-from qiskit import QuantumCircuit, Aer, execute
-qc = QuantumCircuit(2, 2)
-qc.h(0)
-qc.x(1)
-qc.measure([0, 1], [0, 1])
+# This is a mock code snippet
+# In a real implementation, this would create a quantum circuit
   `,
 }
 
@@ -55,39 +49,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required parameter: prompt" }, { status: 400, headers })
     }
 
-    logger.info(`Received simulation request: ${prompt}`)
+    logger.info(`Received simulation request: ${prompt} - returning mock data`)
 
-    try {
-      // Generate Qiskit code based on the prompt
-      const qiskitCode = generateQiskitCode(prompt)
-      logger.info("Generated Qiskit code")
-
-      // Execute the Qiskit code
-      const result = await executePythonCode(qiskitCode)
-      logger.info("Executed Qiskit code successfully")
-
-      // Validate the result
-      if (!result || typeof result !== "object") {
-        throw new Error("Invalid response from Python execution")
-      }
-
-      // Return the result
-      return NextResponse.json(result, { headers })
-    } catch (error) {
-      logger.error(`Error in quantum simulation: ${error instanceof Error ? error.message : String(error)}`)
-
-      // Return a fallback result with error information
-      return NextResponse.json(
-        {
-          ...FALLBACK_SIMULATION_RESULT,
-          error: `Simulation error: ${error instanceof Error ? error.message : String(error)}`,
-          title: "Simulation (Fallback)",
-          description: "There was an error running the quantum simulation. Showing fallback data.",
-          explanation: `Error details: ${error instanceof Error ? error.message : String(error)}`,
-        },
-        { status: 200, headers }, // Return 200 with fallback data instead of error
-      )
-    }
+    // Return a mock result
+    return NextResponse.json(
+      {
+        ...FALLBACK_SIMULATION_RESULT,
+        prompt: prompt,
+      },
+      { headers },
+    )
   } catch (error) {
     logger.error(`Error in simulation API: ${error instanceof Error ? error.message : String(error)}`)
 
@@ -98,7 +69,7 @@ export async function POST(request: Request) {
         error: `API error: ${error instanceof Error ? error.message : String(error)}`,
         details: error instanceof Error ? error.message : String(error),
       },
-      { status: 200 }, // Return 200 with fallback data instead of error
+      { status: 200 },
     )
   }
 }

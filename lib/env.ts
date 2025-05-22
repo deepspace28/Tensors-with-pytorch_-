@@ -6,8 +6,6 @@ export const serverEnv = {
   GROQ_API_KEY: process.env.GROQ_API_KEY || "",
   MONGODB_URI: process.env.MONGODB_URI || "",
   REDIS_URL: process.env.REDIS_URL || "",
-  PYTHON_API_URL: process.env.PYTHON_API_URL || "",
-  PYTHON_API_KEY: process.env.PYTHON_API_KEY || "",
   JWT_SECRET: process.env.JWT_SECRET || "default_jwt_secret_for_development",
   ZOHO_USER: process.env.ZOHO_USER || "",
   ZOHO_APP_PASSWORD: process.env.ZOHO_APP_PASSWORD || "",
@@ -21,8 +19,6 @@ export const clientEnv = {
   API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
   FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG || "",
-  PYTHON_API_URL: process.env.NEXT_PUBLIC_PYTHON_API_URL || "",
-  // Removed GROQ_API_KEY completely
 }
 
 // Validate that required environment variables are set
@@ -62,14 +58,51 @@ export function getApiBaseUrl() {
   return "http://localhost:3000/api"
 }
 
-// Check if we're in demo mode - ALWAYS RETURN FALSE
+// Check if we're in demo mode
 export function isDemoMode() {
-  return false // Force to always return false
+  return process.env.NEXT_PUBLIC_DEMO_MODE === "true"
 }
 
 // Get API key - SERVER SIDE ONLY
 // This function should only be called in server components or API routes
 export function getApiKey() {
-  // Only use server-side key
   return serverEnv.GROQ_API_KEY
+}
+
+// For backward compatibility
+export const ENV = {
+  // API URLs
+  API_URL: process.env.NEXT_PUBLIC_API_URL || "",
+  BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
+
+  // Feature flags
+  FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG === "true",
+  DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE === "true",
+
+  // API Keys (server-side only)
+  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || "",
+  SEARCH_ENGINE_ID: process.env.SEARCH_ENGINE_ID || "",
+
+  // Auth
+  JWT_SECRET: process.env.JWT_SECRET || "default_jwt_secret_for_development",
+
+  // Redis
+  REDIS_URL: process.env.REDIS_URL || "",
+
+  // MongoDB
+  MONGODB_URI: process.env.MONGODB_URI || "",
+
+  // Email
+  ZOHO_USER: process.env.ZOHO_USER || "",
+  ZOHO_APP_PASSWORD: process.env.ZOHO_APP_PASSWORD || "",
+}
+
+// Public environment variables (safe to use on client-side)
+export const PUBLIC_ENV = {
+  API_URL: process.env.NEXT_PUBLIC_API_URL || "",
+  BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || "",
+  FEATURE_FLAG: process.env.NEXT_PUBLIC_FEATURE_FLAG === "true",
+  DEMO_MODE: process.env.NEXT_PUBLIC_DEMO_MODE === "true",
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
 }
