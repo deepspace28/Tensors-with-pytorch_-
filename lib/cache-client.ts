@@ -12,6 +12,8 @@ function createCacheClient() {
     if (process.env.REDIS_URL) {
       // Clean up the Redis URL to remove any potential URL encoding issues
       const redisUrl = process.env.REDIS_URL.trim()
+        .replace(/%20/g, "") // Remove URL-encoded spaces
+        .replace(/\s+/g, "") // Remove any actual spaces
 
       console.log("Connecting to Redis...")
 
