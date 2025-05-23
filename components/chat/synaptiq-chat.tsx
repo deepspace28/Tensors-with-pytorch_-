@@ -124,7 +124,7 @@ export const ConversationStorage = {
 
 type ChatMode = "normal" | "search" | "reason"
 
-function SynaptiqChat() {
+export function SynaptiqChat() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -132,9 +132,17 @@ function SynaptiqChat() {
   const [isLoading, setIsLoading] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // Initialize with a default conversation
   useEffect(() => {
+    if (!isClient) return
+
     const initialConversation: Conversation = {
       id: uuidv4(),
       title: "New Conversation",
@@ -143,7 +151,7 @@ function SynaptiqChat() {
     }
     setConversations([initialConversation])
     setCurrentConversationId(initialConversation.id)
-  }, [])
+  }, [isClient])
 
   // Handle new chat creation
   const handleNewChat = () => {
@@ -274,6 +282,18 @@ function SynaptiqChat() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [sidebarOpen])
 
+  // Show loading state until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+          <p className="text-lg font-medium text-gray-700">Loading chat interface...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-white dark:bg-gray-950">
       {/* Sidebar */}
@@ -364,5 +384,5 @@ function SynaptiqChat() {
   )
 }
 
-// Export the component
+// Make sure to export the component as default as well
 export default SynaptiqChat
