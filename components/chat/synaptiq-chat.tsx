@@ -8,7 +8,6 @@ import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
 import { ChatHeader } from "./chat-header"
 import { ConversationSidebar } from "./conversation-sidebar"
-import { useChat } from "@/contexts/chat-context"
 
 // Mock implementation of ConversationStorage for development
 // In a real app, this would be imported from "@/lib/conversation-storage"
@@ -125,32 +124,142 @@ export const ConversationStorage = {
 
 type ChatMode = "normal" | "search" | "reason"
 
-export function SynaptiqChat() {
+function SynaptiqChat() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
 
-  const {
-    messages,
-    isLoading,
-    sendMessage,
-    conversations,
-    currentConversationId,
-    createNewConversation,
-    switchConversation,
-    deleteConversation,
-  } = useChat()
+  // Initialize with a default conversation
+  useEffect(() => {
+    const initialConversation: Conversation = {
+      id: uuidv4(),
+      title: "New Conversation",
+      messages: [],
+      lastUpdated: new Date(),
+    }
+    setConversations([initialConversation])
+    setCurrentConversationId(initialConversation.id)
+  }, [])
 
   // Handle new chat creation
   const handleNewChat = () => {
-    createNewConversation()
+    const newConversation: Conversation = {
+      id: uuidv4(),
+      title: "New Conversation",
+      messages: [],
+      lastUpdated: new Date(),
+    }
+    setConversations((prev) => [newConversation, ...prev])
+    setCurrentConversationId(newConversation.id)
+    setMessages([])
     setSidebarOpen(false)
   }
 
   // Handle conversation switching
   const handleConversationSwitch = (conversationId: string) => {
-    switchConversation(conversationId)
+    setCurrentConversationId(conversationId)
+    const conversation = conversations.find((c) => c.id === conversationId)
+    setMessages(conversation?.messages || [])
     setSidebarOpen(false)
+  }
+
+  // Handle conversation deletion
+  const deleteConversation = (conversationId: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId))
+    if (currentConversationId === conversationId) {
+      const remainingConversations = conversations.filter((c) => c.id !== conversationId)
+      if (remainingConversations.length > 0) {
+        setCurrentConversationId(remainingConversations[0].id)
+        setMessages(remainingConversations[0].messages)
+      } else {
+        handleNewChat()
+      }
+    }
+  }
+
+  // Handle sending a message
+  const sendMessage = async (content: string) => {
+    if (!currentConversationId) return
+
+    setIsLoading(true)
+
+    // Create a new user message
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: "user",
+      content,
+      timestamp: new Date(),
+    }
+
+    // Update messages state
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
+
+    // Update the current conversation
+    setConversations((prev) =>
+      prev.map((conv) => {
+        if (conv.id === currentConversationId) {
+          return {
+            ...conv,
+            messages: updatedMessages,
+            lastUpdated: new Date(),
+            // Update title for new conversations
+            title: conv.messages.length === 0 ? content.slice(0, 30) + (content.length > 30 ? "..." : "") : conv.title,
+          }
+        }
+        return conv
+      }),
+    )
+
+    try {
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Create a new assistant message
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: `I've processed your query about "${content}". Here's what I found...`,
+        timestamp: new Date(),
+      }
+
+      // Update messages with the assistant response
+      const finalMessages = [...updatedMessages, assistantMessage]
+      setMessages(finalMessages)
+
+      // Update the conversation with the assistant message
+      setConversations((prev) =>
+        prev.map((conv) => {
+          if (conv.id === currentConversationId) {
+            return {
+              ...conv,
+              messages: finalMessages,
+              lastUpdated: new Date(),
+            }
+          }
+          return conv
+        }),
+      )
+    } catch (error) {
+      console.error("Error sending message:", error)
+
+      // Create an error message
+      const errorMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: "I'm sorry, but I encountered an error processing your request. Please try again later.",
+        timestamp: new Date(),
+      }
+
+      // Update messages with the error
+      setMessages([...updatedMessages, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Auto-hide sidebar on mobile when clicking outside
@@ -255,5 +364,5 @@ export function SynaptiqChat() {
   )
 }
 
-// Make sure to export the component as default as well
+// Export the component
 export default SynaptiqChat
