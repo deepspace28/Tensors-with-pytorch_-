@@ -1,10 +1,7 @@
-import { UserProvider } from "@/contexts/user-context"
+"use client"
+
 import { SynaptiqChat } from "@/components/chat/synaptiq-chat"
 
 export default function ChatPage() {
-  return (
-    <UserProvider>
-      <SynaptiqChat />
-    </UserProvider>
-  )
+  return <SynaptiqChat />
 }

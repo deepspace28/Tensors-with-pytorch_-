@@ -55,6 +55,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined)
 // Create the chat provider
 export function ChatProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
   const [chatState, setChatState] = useState<ChatState>({
     messages: [],
     isLoading: false,
@@ -74,8 +75,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Initialize with a default conversation
+  // Set client flag after hydration
   useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Initialize with a default conversation only on client
+  useEffect(() => {
+    if (!isClient) return
+
     const initialConversation: Conversation = {
       id: uuidv4(),
       title: "New Conversation",
@@ -84,13 +92,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
     setConversations([initialConversation])
     setSelectedConversation(initialConversation)
-  }, [])
+  }, [isClient])
 
-  // Load messages from localStorage on mount
+  // Load messages from localStorage on mount (client-side only)
   useEffect(() => {
-    const savedMessages = localStorage.getItem("synaptiq-chat-messages")
-    if (savedMessages) {
-      try {
+    if (!isClient) return
+
+    try {
+      const savedMessages = localStorage.getItem("synaptiq-chat-messages")
+      if (savedMessages) {
         const parsedMessages = JSON.parse(savedMessages)
         // Convert string timestamps back to Date objects
         const messagesWithDateTimestamps = parsedMessages.map((msg: any) => ({
@@ -98,16 +108,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           timestamp: new Date(msg.timestamp),
         }))
         setChatState((prev) => ({ ...prev, messages: messagesWithDateTimestamps }))
-      } catch (error) {
-        console.error("Error parsing saved messages:", error)
       }
+    } catch (error) {
+      console.error("Error parsing saved messages:", error)
     }
-  }, [])
+  }, [isClient])
 
-  // Save messages to localStorage when they change
+  // Save messages to localStorage when they change (client-side only)
   useEffect(() => {
-    localStorage.setItem("synaptiq-chat-messages", JSON.stringify(chatState.messages))
-  }, [chatState.messages])
+    if (!isClient) return
+
+    try {
+      localStorage.setItem("synaptiq-chat-messages", JSON.stringify(chatState.messages))
+    } catch (error) {
+      console.error("Error saving messages:", error)
+    }
+  }, [chatState.messages, isClient])
 
   // Function to create a new conversation
   const createNewConversation = () => {
@@ -236,6 +252,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const navigateToLab = (prompt: string) => {
     const encodedPrompt = encodeURIComponent(prompt)
     router.push(`/lab?prompt=${encodedPrompt}`)
+  }
+
+  // Don't render anything until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <ChatContext.Provider
+        value={{
+          chatState,
+          sendMessage: () => {},
+          clearMessages: () => {},
+          setInteractionMode: () => {},
+          showBetaModal: false,
+          setShowBetaModal: () => {},
+          showLoginModal: false,
+          setShowLoginModal: () => {},
+          showLimitModal: false,
+          setShowLimitModal: () => {},
+          showUpgradeModal: false,
+          setShowUpgradeModal: () => {},
+          navigateToLab: () => {},
+          conversations: [],
+          selectedConversation: null,
+          createNewConversation: () => {},
+          selectConversation: () => {},
+          loading: false,
+          error: null,
+        }}
+      >
+        {children}
+      </ChatContext.Provider>
+    )
   }
 
   return (
