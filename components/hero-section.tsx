@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 
 interface HeroSectionProps {
@@ -40,17 +41,26 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
 
       <div className="container px-4 md:px-6 relative z-20">
         <div className="mx-auto max-w-3xl text-center">
-          <div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
               Build the Future of Science with AI
             </h1>
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl mt-4">
               Accelerate discoveries in quantum mechanics, physics, and mathematics using Synaptiq's specialized AI.
             </p>
-          </div>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
+          >
             {/* Try Demo button - LEFT, WHITE */}
             <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-6 h-auto">
               <Link href="/demo" className="flex items-center">
@@ -67,8 +77,13 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
             >
               <Link href="/beta">Request Beta Access</Link>
             </Button>
-          </div>
-          <div className="mt-12 flex justify-center items-center gap-8">
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="mt-12 flex justify-center items-center gap-8"
+          >
             <div className="flex flex-col items-center">
               <div className="text-3xl font-bold text-primary">99.8%</div>
               <div className="text-sm text-muted-foreground">Accuracy Rate</div>
@@ -83,9 +98,41 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
               <div className="text-3xl font-bold text-primary">10k+</div>
               <div className="text-sm text-muted-foreground">Researchers</div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Animated particles */}
+      <ParticleEffect />
     </section>
+  )
+}
+
+function ParticleEffect() {
+  return (
+    <div className="absolute inset-0 z-10 pointer-events-none">
+      {Array.from({ length: 20 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full bg-white"
+          style={{
+            width: Math.random() * 4 + 1,
+            height: Math.random() * 4 + 1,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+          }}
+          animate={{
+            opacity: [0, 0.5, 0],
+            scale: [0, 1, 0],
+          }}
+          transition={{
+            duration: Math.random() * 5 + 5,
+            repeat: Number.POSITIVE_INFINITY,
+            repeatType: "loop",
+            delay: Math.random() * 5,
+          }}
+        />
+      ))}
+    </div>
   )
 }

@@ -1,16 +1,20 @@
 "use client"
 
 import type React from "react"
-import { UserProvider } from "@/contexts/user-context"
 
-interface ChatLayoutClientProps {
-  children: React.ReactNode
-}
-
-export default function ChatLayoutClient({ children }: ChatLayoutClientProps) {
+export default function ChatLayoutClient({ children }: { children: React.ReactNode }) {
   return (
-    <UserProvider>
-      <div className="flex h-screen bg-background">{children}</div>
-    </UserProvider>
+    <div className="chat-layout h-[100dvh] flex flex-col overflow-hidden">
+      <style jsx global>{`
+        body {
+          overflow: hidden;
+          position: fixed;
+          width: 100%;
+          height: 100%;
+          overscroll-behavior-y: none;
+        }
+      `}</style>
+      {children}
+    </div>
   )
 }

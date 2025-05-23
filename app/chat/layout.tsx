@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import ChatLayoutClient from "./ChatLayoutClient"
 
 export const metadata: Metadata = {
   title: "Synaptiq Chat",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 }
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <ChatLayoutClient children={children} />
 }
