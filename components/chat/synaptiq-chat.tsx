@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Send,
+  Plus,
   Search,
   Sparkles,
   Lightbulb,
@@ -223,23 +224,15 @@ export function SynaptiqChat() {
     }
   }, [input])
 
-  // Improved scroll to bottom when messages change
+  // Scroll to bottom when messages change, but maintain position if user has scrolled up
   useEffect(() => {
-    const scrollToBottom = () => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        })
-      }
-    }
+    if (messagesEndRef.current && messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100
 
-    // Always scroll to bottom when messages change
-    if (currentConversation?.messages && currentConversation.messages.length > 0) {
-      // Use multiple timeouts to ensure scrolling works
-      setTimeout(scrollToBottom, 0)
-      setTimeout(scrollToBottom, 100)
-      setTimeout(scrollToBottom, 300)
+      if (isScrolledToBottom) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      }
     }
   }, [currentConversation?.messages])
 
@@ -257,9 +250,9 @@ export function SynaptiqChat() {
     }
   }, [isBetaMember, chatMode])
 
-  // Enhanced KaTeX loading and math rendering
+  // Load KaTeX for math rendering - enhanced for strict rendering
   useEffect(() => {
-    // Load KaTeX CSS
+    // Add KaTeX CSS if not already added
     if (!document.querySelector('link[href*="katex.min.css"]')) {
       const linkElement = document.createElement("link")
       linkElement.rel = "stylesheet"
@@ -269,35 +262,30 @@ export function SynaptiqChat() {
       document.head.appendChild(linkElement)
     }
 
-    // Load KaTeX JavaScript
-    const loadKaTeX = () => {
-      if (!(window as any).katex) {
-        const scriptElement = document.createElement("script")
-        scriptElement.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"
-        scriptElement.integrity = "sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx"
-        scriptElement.crossOrigin = "anonymous"
-        scriptElement.onload = () => {
-          // Load auto-render extension
-          const autoRenderScript = document.createElement("script")
-          autoRenderScript.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
-          autoRenderScript.integrity = "sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
-          autoRenderScript.crossOrigin = "anonymous"
-          autoRenderScript.onload = () => {
-            // Render math in existing content
-            renderMathInContainer()
-          }
-          document.head.appendChild(autoRenderScript)
-        }
-        document.head.appendChild(scriptElement)
-      } else {
-        renderMathInContainer()
-      }
+    // Add KaTeX script if not already added
+    if (!window.katex) {
+      const scriptElement = document.createElement("script")
+      scriptElement.defer = true
+      scriptElement.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"
+      scriptElement.integrity = "sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx"
+      scriptElement.crossOrigin = "anonymous"
+      document.head.appendChild(scriptElement)
+
+      // Add auto-render extension
+      const autoRenderScript = document.createElement("script")
+      autoRenderScript.defer = true
+      autoRenderScript.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+      autoRenderScript.integrity = "sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+      autoRenderScript.crossOrigin = "anonymous"
+      document.head.appendChild(autoRenderScript)
     }
 
-    const renderMathInContainer = () => {
-      if (messagesContainerRef.current && (window as any).renderMathInElement) {
+    // Function to render math in the container
+    const renderMath = () => {
+      if (messagesContainerRef.current && typeof window.renderMathInElement === "function") {
         try {
-          ;(window as any).renderMathInElement(messagesContainerRef.current, {
+          // @ts-ignore
+          window.renderMathInElement(messagesContainerRef.current, {
             delimiters: [
               { left: "$$", right: "$$", display: true },
               { left: "$", right: "$", display: false },
@@ -310,18 +298,12 @@ export function SynaptiqChat() {
               { left: "\\begin{CD}", right: "\\end{CD}", display: true },
             ],
             throwOnError: false,
-            strict: false,
+            strict: true,
             trust: true,
             macros: {
               "\\eqref": "\\href{#1}{}",
               "\\label": "\\href{#1}{}",
               "\\require": "\\href{#1}{}",
-              "\\boxed": "\\fbox{#1}",
-              "\\hbar": "\\bar{h}",
-              "\\psi": "\\psi",
-              "\\phi": "\\phi",
-              "\\nabla": "\\nabla",
-              "\\partial": "\\partial",
             },
           })
         } catch (e) {
@@ -330,62 +312,23 @@ export function SynaptiqChat() {
       }
     }
 
-    loadKaTeX()
-
-    // Set up mutation observer for dynamic content
+    // Set up a mutation observer to detect when new messages are added
     const observer = new MutationObserver(() => {
-      setTimeout(renderMathInContainer, 100)
+      setTimeout(renderMath, 0)
     })
 
     if (messagesContainerRef.current) {
-      observer.observe(messagesContainerRef.current, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      })
+      observer.observe(messagesContainerRef.current, { childList: true, subtree: true })
+      renderMath()
+    }
+
+    // Re-render math when messages change
+    if (currentConversation?.messages) {
+      setTimeout(renderMath, 100)
     }
 
     return () => {
       observer.disconnect()
-    }
-  }, [])
-
-  // Re-render math when messages change
-  useEffect(() => {
-    if (currentConversation?.messages && (window as any).renderMathInElement && messagesContainerRef.current) {
-      setTimeout(() => {
-        try {
-          ;(window as any).renderMathInElement(messagesContainerRef.current, {
-            delimiters: [
-              { left: "$$", right: "$$", display: true },
-              { left: "$", right: "$", display: false },
-              { left: "\\[", right: "\\]", display: true },
-              { left: "$$", right: "$$", display: false },
-              { left: "\\begin{equation}", right: "\\end{equation}", display: true },
-              { left: "\\begin{align}", right: "\\end{align}", display: true },
-              { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
-              { left: "\\begin{gather}", right: "\\end{gather}", display: true },
-              { left: "\\begin{CD}", right: "\\end{CD}", display: true },
-            ],
-            throwOnError: false,
-            strict: false,
-            trust: true,
-            macros: {
-              "\\eqref": "\\href{#1}{}",
-              "\\label": "\\href{#1}{}",
-              "\\require": "\\href{#1}{}",
-              "\\boxed": "\\fbox{#1}",
-              "\\hbar": "\\bar{h}",
-              "\\psi": "\\psi",
-              "\\phi": "\\phi",
-              "\\nabla": "\\nabla",
-              "\\partial": "\\partial",
-            },
-          })
-        } catch (e) {
-          console.error("Error rendering math:", e)
-        }
-      }, 200)
     }
   }, [currentConversation?.messages])
 
@@ -411,8 +354,6 @@ export function SynaptiqChat() {
     setInput("")
     setChatMode("normal")
     setError(null)
-    setRetryCount(0)
-    setIsLoading(false)
   }
 
   const switchConversation = (id: string) => {
@@ -491,24 +432,20 @@ export function SynaptiqChat() {
     }
   }
 
-  const scrollToBottom = (force = false) => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-      })
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Prevent default form behavior
     e.stopPropagation()
 
     if (!input.trim() || isLoading || !currentConversation) return
 
-    // Clear any previous errors
+    // Save the current scroll position
+    const messagesContainer = messagesContainerRef.current
+    const scrollPosition = messagesContainer ? messagesContainer.scrollTop : 0
+
+    // Reset any previous errors
     setError(null)
-    setRetryCount(0)
 
     const userMessage: Message = {
       id: uuidv4(),
@@ -517,46 +454,49 @@ export function SynaptiqChat() {
       timestamp: new Date(),
     }
 
-    // Add user message to conversation
+    // Add message to current conversation
     ConversationStorage.addMessage(currentConversation.id, userMessage)
 
-    // Create placeholder for assistant response
-    const placeholderMessage: Message = {
-      id: uuidv4(),
-      role: "assistant",
-      content: "Thinking...",
-      timestamp: new Date(),
-      isPlaceholder: true,
+    // Add an immediate placeholder response to avoid loading state
+    if (chatMode !== "search") {
+      // Create a temporary placeholder message that will be replaced
+      const placeholderMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: "Thinking...",
+        timestamp: new Date(),
+        isPlaceholder: true,
+      }
+
+      // Add placeholder message to conversation
+      ConversationStorage.addMessage(currentConversation.id, placeholderMessage)
+
+      // Update state with placeholder
+      const placeholderConversation = ConversationStorage.get(currentConversation.id)
+      setCurrentConversation(placeholderConversation || null)
+
+      // Don't show loading state since we have a placeholder
+      setIsLoading(false)
+    } else {
+      setIsLoading(true)
     }
 
-    ConversationStorage.addMessage(currentConversation.id, placeholderMessage)
-
-    // Update state immediately
+    // Update state
     const updatedConversation = ConversationStorage.get(currentConversation.id)
     setCurrentConversation(updatedConversation || null)
+
+    // Refresh conversations list to update titles and order
     setConversations(ConversationStorage.getAll())
 
-    const currentInput = input
     setInput("")
-    setIsLoading(true)
-
-    // Force scroll to bottom after sending message
-    setTimeout(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        })
-      }
-    }, 100)
 
     try {
-      // Check network connectivity
+      // Check if we're offline
       if (!navigator.onLine) {
-        throw new Error("No internet connection. Please check your network and try again.")
+        throw new Error("You appear to be offline. Please check your internet connection and try again.")
       }
 
-      // Prepare messages for API
+      // Convert messages to the format expected by the API
       const apiMessages =
         updatedConversation?.messages
           .filter((msg) => !msg.isPlaceholder)
@@ -567,49 +507,57 @@ export function SynaptiqChat() {
 
       console.log("Sending chat request with mode:", chatMode)
 
+      // Try with server-side endpoint first (more reliable)
       let response
-      let lastError
-
-      // Try server-side endpoint first
-      try {
+      if (!useDirectClient) {
         response = await callSecureGroqEndpoint(apiMessages, chatMode)
-        if (response.error) {
-          lastError = response.error
-          throw new Error(response.error)
-        }
-      } catch (serverError) {
-        console.log("Server-side endpoint failed, trying direct client as fallback")
-        lastError = serverError instanceof Error ? serverError.message : "Server error"
 
-        // Fallback to direct client
-        try {
+        // If server-side fails, try direct client as fallback
+        if (response.error) {
+          console.log("Server-side endpoint failed, trying direct client as fallback")
           response = await DirectGroqClient.chat({
             messages: apiMessages,
             mode: chatMode as GroqChatMode,
           })
-          if (response.error) {
-            throw new Error(response.error)
-          }
-        } catch (directError) {
-          console.log("Direct client also failed")
-          throw new Error(lastError || "Both server and direct client failed")
+        }
+      } else {
+        // Use direct client first if that setting is enabled
+        response = await DirectGroqClient.chat({
+          messages: apiMessages,
+          mode: chatMode as GroqChatMode,
+        })
+
+        // If direct client fails, try server-side endpoint as fallback
+        if (response.error) {
+          console.log("Direct client failed, trying server-side endpoint as fallback")
+          response = await callSecureGroqEndpoint(apiMessages, chatMode)
         }
       }
 
-      const responseText =
-        response.text || "I received your message but couldn't generate a proper response. Please try again."
+      console.log("Received response:", response)
 
-      // Replace placeholder with actual response
+      // If we have an error message in the response, handle it
+      if (response.error) {
+        throw new Error(response.error)
+      }
+
+      const responseText = response.text || "I received your message, but had trouble processing it. Please try again."
+
+      // Reset retry count on successful response
+      setRetryCount(0)
+
+      // Find and replace the placeholder message if it exists
       const messages = updatedConversation?.messages || []
       const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
 
       if (placeholderIndex >= 0) {
+        // Replace the placeholder with the real response
         ConversationStorage.updateMessage(currentConversation.id, messages[placeholderIndex].id, {
           content: responseText,
           isPlaceholder: false,
         })
       } else {
-        // Fallback: add as new message
+        // Add as a new message if no placeholder exists
         const assistantMessage: Message = {
           id: uuidv4(),
           role: "assistant",
@@ -619,124 +567,108 @@ export function SynaptiqChat() {
         ConversationStorage.addMessage(currentConversation.id, assistantMessage)
       }
 
-      // Update state with final conversation
+      // Update state
       const finalConversation = ConversationStorage.get(currentConversation.id)
       setCurrentConversation(finalConversation || null)
+
+      // Refresh conversations list
       setConversations(ConversationStorage.getAll())
 
-      // Force scroll to bottom after response
+      // Re-render math in the new message
       setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "end",
-          })
+        if (typeof window.renderMathInElement === "function" && messagesContainerRef.current) {
+          try {
+            // @ts-ignore
+            window.renderMathInElement(messagesContainerRef.current, {
+              delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "$", right: "$", display: false },
+                { left: "\\[", right: "\\]", display: true },
+                { left: "$$", right: "$$", display: false },
+                { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+                { left: "\\begin{align}", right: "\\end{align}", display: true },
+                { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+                { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+                { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+              ],
+              throwOnError: false,
+              strict: true,
+              trust: true,
+            })
+          } catch (e) {
+            console.error("Error rendering math:", e)
+          }
         }
-      }, 200)
-
-      // Clear error state on success
-      setError(null)
-      setRetryCount(0)
+      }, 100)
     } catch (error) {
       console.error("Chat error:", error)
 
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+      // Increment retry count
+      setRetryCount((prev) => prev + 1)
+
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
       setError(errorMessage)
 
-      // Create user-friendly error message
+      // Create a fallback response based on the mode and retry count
       let fallbackMessage = ""
 
-      if (errorMessage.includes("network") || errorMessage.includes("internet") || errorMessage.includes("offline")) {
-        fallbackMessage = `I'm having trouble connecting to the internet. Please check your connection and try again.
+      if (retryCount >= 2) {
+        // After multiple retries, provide a more helpful message
+        fallbackMessage = `I apologize, but I'm still having trouble connecting to the server. This might be due to:
+    
+1. Server maintenance
+2. High traffic volume
+3. Network connectivity issues
 
-If the problem persists, you can:
-- Refresh the page
-- Check your network settings
-- Try again in a few moments`
-      } else if (errorMessage.includes("rate limit") || errorMessage.includes("too many requests")) {
-        fallbackMessage = `I'm receiving too many requests right now. Please wait a moment and try again.
-
-This helps ensure the service remains available for everyone.`
-      } else if (errorMessage.includes("server") || errorMessage.includes("503") || errorMessage.includes("502")) {
-        fallbackMessage = `The server is temporarily unavailable. This is usually brief.
-
-Please try again in a few moments. If the issue continues, the service may be under maintenance.`
-      } else {
-        fallbackMessage = `I encountered an error while processing your request: ${errorMessage}
-
-Please try again. If the problem continues, try:
+You can try:
 - Refreshing the page
-- Starting a new conversation
-- Checking your internet connection`
-      }
+- Checking your internet connection
+- Trying again in a few minutes
 
-      // Replace placeholder with error message
-      const messages = updatedConversation?.messages || []
-      const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
-
-      if (placeholderIndex >= 0) {
-        ConversationStorage.updateMessage(currentConversation.id, messages[placeholderIndex].id, {
-          content: fallbackMessage,
-          isPlaceholder: false,
-        })
+In the meantime, I can still try to help with basic questions using my core knowledge.`
       } else {
-        // Fallback: add error as new message
-        const errorMessage: Message = {
-          id: uuidv4(),
-          role: "assistant",
-          content: fallbackMessage,
-          timestamp: new Date(),
+        fallbackMessage = `I apologize, but I encountered an error: ${errorMessage}. Please try again later.`
+
+        if (chatMode === "search") {
+          fallbackMessage +=
+            "\n\nI'm unable to search the web at the moment. Would you like me to answer based on my general knowledge instead?"
+        } else if (chatMode === "reason") {
+          fallbackMessage +=
+            "\n\nI'm unable to use reasoning mode at the moment. Would you like me to provide a standard response instead?"
         }
-        ConversationStorage.addMessage(currentConversation.id, errorMessage)
       }
 
-      // Update state with error conversation
+      // Find and replace the placeholder message if it exists
+      if (updatedConversation) {
+        const messages = updatedConversation.messages || []
+        const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
+
+        if (placeholderIndex >= 0) {
+          // Replace the placeholder with the error message
+          ConversationStorage.updateMessage(currentConversation.id, messages[placeholderIndex].id, {
+            content: fallbackMessage,
+            isPlaceholder: false,
+          })
+        } else {
+          // Add error message as a new message
+          const errorResponseMessage: Message = {
+            id: uuidv4(),
+            role: "assistant",
+            content: fallbackMessage,
+            timestamp: new Date(),
+          }
+          ConversationStorage.addMessage(currentConversation.id, errorResponseMessage)
+        }
+      }
+
+      // Update state
       const errorConversation = ConversationStorage.get(currentConversation.id)
       setCurrentConversation(errorConversation || null)
-      setConversations(ConversationStorage.getAll())
 
-      // Force scroll to bottom after error message
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "end",
-          })
-        }
-      }, 200)
+      // Refresh conversations list
+      setConversations(ConversationStorage.getAll())
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const retryLastMessage = async () => {
-    if (!currentConversation || currentConversation.messages.length === 0) return
-
-    // Find the last user message
-    const messages = [...currentConversation.messages].reverse()
-    const lastUserMessage = messages.find((m) => m.role === "user")
-
-    if (lastUserMessage) {
-      setInput(lastUserMessage.content)
-      // Remove the error response if it exists
-      const lastMessage = currentConversation.messages[currentConversation.messages.length - 1]
-      if (lastMessage.role === "assistant") {
-        // Remove the last assistant message and retry
-        const updatedMessages = currentConversation.messages.slice(0, -1)
-        const updatedConversation = {
-          ...currentConversation,
-          messages: updatedMessages,
-        }
-        setCurrentConversation(updatedConversation)
-
-        // Update storage
-        localStorage.setItem(
-          "conversations",
-          JSON.stringify(
-            ConversationStorage.getAll().map((c) => (c.id === currentConversation.id ? updatedConversation : c)),
-          ),
-        )
-      }
     }
   }
 
@@ -803,422 +735,439 @@ Please try again. If the problem continues, try:
     .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
 
   return (
-    <div className="flex h-screen bg-[#0f0f0f] text-white">
-      {/* Sidebar */}
-      <aside className="w-[260px] border-r border-[#2a2a2a] bg-[#1a1a1a] p-4">
-        <button
-          className="w-full bg-[#3a3a3a] text-white py-2 rounded-md mb-4 hover:bg-[#4a4a4a] transition-colors"
-          onClick={createNewConversation}
-        >
-          + New Chat
-        </button>
-
-        {/* Today's conversations */}
-        {todayConversations.length > 0 && (
-          <>
-            <div className="text-gray-400 text-sm mb-2">TODAY</div>
-            <div className="space-y-1 mb-4">
-              {todayConversations.map((conv) => (
-                <div key={conv.id} className="relative group">
-                  <button
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                    )}
-                    onClick={() => switchConversation(conv.id)}
-                  >
-                    {editingTitle === conv.id ? (
-                      <input
-                        type="text"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            updateConversationTitle(conv.id, newTitle)
-                          }
-                        }}
-                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      conv.title
-                    )}
-                  </button>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] cursor-pointer"
-                          onClick={() => {
-                            setEditingTitle(conv.id)
-                            setNewTitle(conv.title)
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                          onClick={() => setDeleteConfirmId(conv.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Yesterday's conversations */}
-        {yesterdayConversations.length > 0 && (
-          <>
-            <div className="text-gray-400 text-sm mb-2">YESTERDAY</div>
-            <div className="space-y-1 mb-4">
-              {yesterdayConversations.map((conv) => (
-                <div key={conv.id} className="relative group">
-                  <button
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                    )}
-                    onClick={() => switchConversation(conv.id)}
-                  >
-                    {editingTitle === conv.id ? (
-                      <input
-                        type="text"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            updateConversationTitle(conv.id, newTitle)
-                          }
-                        }}
-                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      conv.title
-                    )}
-                  </button>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] cursor-pointer"
-                          onClick={() => {
-                            setEditingTitle(conv.id)
-                            setNewTitle(conv.title)
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                          onClick={() => setDeleteConfirmId(conv.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Older conversations */}
-        {olderConversations.length > 0 && (
-          <>
-            <div className="text-gray-400 text-sm mb-2">PREVIOUS 7 DAYS</div>
-            <div className="space-y-1">
-              {olderConversations.map((conv) => (
-                <div key={conv.id} className="relative group">
-                  <button
-                    className={cn(
-                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
-                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                    )}
-                    onClick={() => switchConversation(conv.id)}
-                  >
-                    {editingTitle === conv.id ? (
-                      <input
-                        type="text"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            updateConversationTitle(conv.id, newTitle)
-                          }
-                        }}
-                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      conv.title
-                    )}
-                  </button>
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] cursor-pointer"
-                          onClick={() => {
-                            setEditingTitle(conv.id)
-                            setNewTitle(conv.title)
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
-                          onClick={() => setDeleteConfirmId(conv.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </aside>
-
-      {/* Main Chat Panel */}
-      <div className="flex flex-col flex-1">
-        {/* Top Navbar */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a]">
-          <div className="flex items-center gap-2">
+    <div ref={chatContainerRef} className="flex flex-col h-[100dvh] overflow-hidden bg-[#0f0f0f] text-white">
+      {/* Header - Fixed at top */}
+      <header className="border-b border-[#2a2a2a] p-2 flex-shrink-0 sticky top-0 z-10 bg-[#0f0f0f]">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <Link href="/" className="flex items-center space-x-2 pl-0 md:pl-0 hover:opacity-80 transition-opacity">
             <ScientificLogo className="h-6 w-6 text-white" />
-            <span className="text-xl font-bold">Synaptiq</span>
-          </div>
-          <Link href="/" className="text-sm text-gray-400 hover:text-white hover:underline transition-colors">
-            Home
+            <h1 className="text-lg font-medium">Synaptiq</h1>
           </Link>
-        </header>
+          <nav className="flex items-center space-x-4">
+            <Link href="/" className="text-sm text-gray-300 hover:text-white transition-colors">
+              Home
+            </Link>
+          </nav>
+        </div>
+      </header>
 
-        {/* Offline warning */}
-        {showOfflineMessage && (
-          <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
-            <AlertTriangle className="inline-block h-4 w-4 mr-2" />
-            You are currently offline. Some features may be unavailable.
+      {/* Offline warning */}
+      {showOfflineMessage && (
+        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm sticky top-[44px] z-10">
+          <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+          You are currently offline. Some features may be unavailable.
+        </div>
+      )}
+
+      {/* Main content - Flex container with fixed height */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar - Fixed width, scrollable */}
+        <div className="w-64 border-r border-[#2a2a2a] bg-[#1a1a1a] hidden md:flex md:flex-col overflow-hidden">
+          <div className="p-3 flex-shrink-0">
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]"
+              onClick={createNewConversation}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Chat
+            </Button>
           </div>
-        )}
 
-        {/* Chat Messages Area */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 relative">
-          {!currentConversation || currentConversation.messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <h2 className="text-3xl font-medium mb-2">What can I help with?</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
-                <div
-                  className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
-                  onClick={() => setInput("Explain quantum entanglement")}
-                >
-                  <Search className="h-5 w-5 text-gray-400 mb-2" />
-                  <h3 className="font-medium mb-1">Explain quantum entanglement</h3>
-                  <p className="text-sm text-gray-400">Learn about this fascinating quantum phenomenon</p>
-                </div>
-                <div
-                  className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
-                  onClick={() => setInput("Solve the differential equation dy/dx = 2xy")}
-                >
-                  <Sparkles className="h-5 w-5 text-gray-400 mb-2" />
-                  <h3 className="font-medium mb-1">Solve a differential equation</h3>
-                  <p className="text-sm text-gray-400">Get step-by-step solutions to complex problems</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            currentConversation.messages.map((message) => {
-              // Skip placeholder messages that are being replaced
-              if (message.isPlaceholder && isLoading) return null
-
-              return (
-                <div
-                  key={message.id}
-                  className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[80%]",
-                      message.role === "assistant" ? "bg-[#1a1a1a] p-4 rounded-lg" : "bg-[#2a2a2a] p-4 rounded-lg",
-                      message.isPlaceholder ? "opacity-70" : "",
-                    )}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="flex items-start">
-                        <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
-                          <ScientificLogo className="h-5 w-5" />
-                        </Avatar>
-                        <div className="flex-1 overflow-hidden">
-                          <div className="prose prose-invert max-w-none">
-                            <MarkdownRenderer content={message.content} />
-                          </div>
-                        </div>
+          {/* Scrollable conversation list */}
+          <div className="flex-1 overflow-y-auto">
+            {todayConversations.length > 0 && (
+              <>
+                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Today</div>
+                <div className="space-y-1 px-2 mb-4">
+                  {todayConversations.map((conv) => (
+                    <div key={conv.id} className="relative group">
+                      <button
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                        )}
+                        onClick={() => switchConversation(conv.id)}
+                      >
+                        {editingTitle === conv.id ? (
+                          <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateConversationTitle(conv.id, newTitle)
+                              }
+                            }}
+                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          conv.title
+                        )}
+                      </button>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] cursor-pointer"
+                              onClick={() => {
+                                setEditingTitle(conv.id)
+                                setNewTitle(conv.title)
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                              onClick={() => setDeleteConfirmId(conv.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                    )}
-                    {message.role === "user" && (
-                      <div className="overflow-hidden">
-                        <div className="prose prose-invert max-w-none">
-                          <p>{message.content}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )
-            })
-          )}
+              </>
+            )}
 
-          {error && (
-            <div className="flex flex-col items-center justify-center p-4 space-y-3">
-              <Alert variant="destructive" className="bg-red-900/20 border border-red-800 text-red-300 max-w-md">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Connection issue detected. Please check your internet connection.
-                </AlertDescription>
-              </Alert>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={retryLastMessage}
-                className="text-white border-gray-600 hover:bg-gray-700"
-              >
-                Try Again
-              </Button>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            {yesterdayConversations.length > 0 && (
+              <>
+                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Yesterday</div>
+                <div className="space-y-1 px-2 mb-4">
+                  {yesterdayConversations.map((conv) => (
+                    <div key={conv.id} className="relative group">
+                      <button
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                        )}
+                        onClick={() => switchConversation(conv.id)}
+                      >
+                        {editingTitle === conv.id ? (
+                          <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateConversationTitle(conv.id, newTitle)
+                              }
+                            }}
+                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          conv.title
+                        )}
+                      </button>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] cursor-pointer"
+                              onClick={() => {
+                                setEditingTitle(conv.id)
+                                setNewTitle(conv.title)
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                              onClick={() => setDeleteConfirmId(conv.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {olderConversations.length > 0 && (
+              <>
+                <div className="px-3 py-2 text-xs font-medium text-gray-400 uppercase">Previous 7 Days</div>
+                <div className="space-y-1 px-2">
+                  {olderConversations.map((conv) => (
+                    <div key={conv.id} className="relative group">
+                      <button
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                          currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                        )}
+                        onClick={() => switchConversation(conv.id)}
+                      >
+                        {editingTitle === conv.id ? (
+                          <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateConversationTitle(conv.id, newTitle)
+                              }
+                            }}
+                            className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          conv.title
+                        )}
+                      </button>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] cursor-pointer"
+                              onClick={() => {
+                                setEditingTitle(conv.id)
+                                setNewTitle(conv.title)
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                              onClick={() => setDeleteConfirmId(conv.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Chat Input Box */}
-        <footer className="border-t border-[#2a2a2a] p-4">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="flex gap-2">
-              <Textarea
-                ref={(el) => {
-                  textareaRef.current = el
-                  inputRef.current = el
-                }}
-                className="flex-1 border border-[#3a3a3a] rounded-md px-4 py-2 bg-[#1a1a1a] text-white placeholder:text-gray-500 resize-none min-h-[44px] max-h-[200px] focus-visible:ring-0 focus-visible:ring-offset-0"
-                placeholder={chatMode === "search" ? "Search the web..." : "Ask anything"}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading}
-              />
-              <Button
-                type="submit"
-                className="bg-[#3a3a3a] text-white px-4 py-2 rounded-md hover:bg-[#4a4a4a] disabled:bg-[#2a2a2a] disabled:text-gray-500"
-                disabled={!input.trim() || isLoading}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+        {/* Chat area - Flex container with messages and input */}
+        <div className="flex-1 flex flex-col h-full max-h-[100dvh] overflow-hidden">
+          {/* Messages - Scrollable area with fixed height */}
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-4 space-y-6"
+            style={{
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
+              height: "calc(100vh - 160px)", // Fixed height calculation
+              maxHeight: "calc(100vh - 160px)",
+              position: "relative",
+            }}
+          >
+            {!currentConversation || currentConversation.messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                <h2 className="text-3xl font-medium mb-2">What can I help with?</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                  <div
+                    className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
+                    onClick={() => setInput("Explain quantum entanglement")}
+                  >
+                    <Search className="h-5 w-5 text-gray-400 mb-2" />
+                    <h3 className="font-medium mb-1">Explain quantum entanglement</h3>
+                    <p className="text-sm text-gray-400">Learn about this fascinating quantum phenomenon</p>
+                  </div>
+                  <div
+                    className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
+                    onClick={() => setInput("Solve the differential equation dy/dx = 2xy")}
+                  >
+                    <Sparkles className="h-5 w-5 text-gray-400 mb-2" />
+                    <h3 className="font-medium mb-1">Solve a differential equation</h3>
+                    <p className="text-sm text-gray-400">Get step-by-step solutions to complex problems</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              currentConversation.messages.map((message) => {
+                // Skip placeholder messages that are being replaced
+                if (message.isPlaceholder && isLoading) return null
 
-            {/* Mode buttons */}
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-8 rounded-lg transition-all",
-                  isBetaMember
-                    ? chatMode === "search"
-                      ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                      : "text-white hover:text-white hover:bg-[#2a2a2a]"
-                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                )}
-                onClick={() => toggleChatMode("search")}
-              >
-                <Search className="h-4 w-4 mr-1" />
-                <span>Search</span>
-                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-8 rounded-lg transition-all",
-                  isBetaMember
-                    ? chatMode === "reason"
-                      ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                      : "text-white hover:text-white hover:bg-[#2a2a2a]"
-                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                )}
-                onClick={() => toggleChatMode("reason")}
-              >
-                <Lightbulb className="h-4 w-4 mr-1" />
-                <span>Reason</span>
-                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-8 rounded-lg transition-all",
-                  isBetaMember
-                    ? "text-white hover:text-white hover:bg-[#2a2a2a]"
-                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                )}
-                onClick={goToSimulations}
-              >
-                <Beaker className="h-4 w-4 mr-1" />
-                <span>Simulations</span>
-                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
-              </Button>
-            </div>
-
-            {/* Mode indicator */}
-            {chatMode !== "normal" && (
-              <div className="text-xs text-center">
-                {chatMode === "search" && (
-                  <span className="text-gray-400">Search mode active - I'll search the web for information</span>
-                )}
-                {chatMode === "reason" && (
-                  <span className="text-gray-400">Reason mode active - I'll provide step-by-step reasoning</span>
-                )}
+                return (
+                  <div
+                    key={message.id}
+                    className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[80%]",
+                        message.role === "assistant" ? "bg-[#1a1a1a] p-4 rounded-lg" : "bg-[#2a2a2a] p-4 rounded-lg",
+                        message.isPlaceholder ? "opacity-70" : "",
+                      )}
+                    >
+                      {message.role === "assistant" && (
+                        <div className="flex items-start">
+                          <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                            <ScientificLogo className="h-5 w-5" />
+                          </Avatar>
+                          <div className="flex-1 overflow-hidden">
+                            <div className="prose prose-invert max-w-none">
+                              <MarkdownRenderer content={message.content} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {message.role === "user" && (
+                        <div className="overflow-hidden">
+                          <div className="prose prose-invert max-w-none">
+                            <p>{message.content}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            {error && (
+              <div className="flex items-center justify-center p-2">
+                <Alert variant="destructive" className="bg-red-900/20 border border-red-800 text-red-300">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>Error: {error}</AlertDescription>
+                </Alert>
               </div>
             )}
-          </form>
-        </footer>
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input area - Fixed at bottom */}
+          <div className="p-4 flex-shrink-0 border-t border-[#2a2a2a] bg-[#0f0f0f]">
+            <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+              <div className="relative rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] focus-within:border-[#5a5a5a]">
+                <Textarea
+                  ref={(el) => {
+                    textareaRef.current = el
+                    inputRef.current = el
+                  }}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={chatMode === "search" ? "Search the web..." : "Ask anything"}
+                  className="min-h-[24px] max-h-[200px] resize-none py-3 px-4 rounded-xl bg-transparent border-none text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 overflow-anchor-none"
+                  disabled={isLoading}
+                  style={{ overflowAnchor: "none" }}
+                />
+
+                {/* Action buttons below the input */}
+                <div className="flex items-center justify-between px-4 py-2 border-t border-[#3a3a3a]">
+                  <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg transition-all whitespace-nowrap",
+                        isBetaMember
+                          ? chatMode === "search"
+                            ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                            : "text-white hover:text-white hover:bg-[#2a2a2a]"
+                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                      )}
+                      onClick={() => toggleChatMode("search")}
+                    >
+                      <Search className="h-4 w-4 mr-1" />
+                      <span>Search</span>
+                      {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg transition-all whitespace-nowrap",
+                        isBetaMember
+                          ? chatMode === "reason"
+                            ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                            : "text-white hover:text-white hover:bg-[#2a2a2a]"
+                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                      )}
+                      onClick={() => toggleChatMode("reason")}
+                    >
+                      <Lightbulb className="h-4 w-4 mr-1" />
+                      <span>Reason</span>
+                      {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 rounded-lg transition-all whitespace-nowrap",
+                        isBetaMember
+                          ? "text-white hover:text-white hover:bg-[#2a2a2a]"
+                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                      )}
+                      onClick={goToSimulations}
+                    >
+                      <Beaker className="h-4 w-4 mr-1" />
+                      <span>Simulations</span>
+                      {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={!input.trim() || isLoading}
+                      className="h-8 w-8 rounded-lg bg-[#3a3a3a] text-white hover:bg-[#4a4a4a] disabled:bg-[#2a2a2a] disabled:text-gray-500"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span className="sr-only">Send message</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mode indicator */}
+              {chatMode !== "normal" && (
+                <div className="text-xs text-center mt-2">
+                  {chatMode === "search" && (
+                    <span className="text-gray-400">Search mode active - I'll search the web for information</span>
+                  )}
+                  {chatMode === "reason" && (
+                    <span className="text-gray-400">Reason mode active - I'll provide step-by-step reasoning</span>
+                  )}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
