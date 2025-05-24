@@ -4,16 +4,11 @@ import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Play, Download, RefreshCw, ArrowLeft, AlertTriangle, Code, Copy, Check } from "lucide-react"
 import Link from "next/link"
-import { MathJax, MathJaxContext } from "better-react-mathjax"
-import { ResourceLoader } from "@/components/resource-loader"
 import { convertToQASM, createBellStateQASM, createGHZStateQASM, createQFTQASM } from "@/lib/qasm-converter"
+import { Badge } from "@/components/ui/badge"
+import { Atom, Calculator, Brain, Zap, Microscope } from "lucide-react"
 
 // Define the simulation parameter type
 interface SimulationParameter {
@@ -49,6 +44,54 @@ interface SimulationResponse {
   detail?: string
 }
 
+const simulationCategories = [
+  {
+    id: "quantum",
+    title: "Quantum Computing",
+    description: "Explore quantum mechanics and quantum computing simulations",
+    icon: Atom,
+    color: "bg-blue-500",
+    demos: [
+      { name: "Quantum Entanglement", path: "/demo/quantum", difficulty: "Advanced" },
+      { name: "Schrödinger's Cat", path: "/demo/schrodinger-cat", difficulty: "Intermediate" },
+      { name: "GHZ State", path: "/demo/ghz-state", difficulty: "Advanced" },
+    ],
+  },
+  {
+    id: "physics",
+    title: "Physics Simulations",
+    description: "Classical and modern physics simulations",
+    icon: Zap,
+    color: "bg-purple-500",
+    demos: [
+      { name: "Black Hole Dynamics", path: "/demo/blackhole", difficulty: "Advanced" },
+      { name: "Wave Interference", path: "/demo/physics", difficulty: "Beginner" },
+    ],
+  },
+  {
+    id: "mathematics",
+    title: "Mathematical Models",
+    description: "Advanced mathematical computations and visualizations",
+    icon: Calculator,
+    color: "bg-green-500",
+    demos: [
+      { name: "Differential Equations", path: "/demo/math", difficulty: "Intermediate" },
+      { name: "Complex Analysis", path: "/math-demo", difficulty: "Advanced" },
+    ],
+  },
+  {
+    id: "ai",
+    title: "AI & Machine Learning",
+    description: "Artificial intelligence and neural network simulations",
+    icon: Brain,
+    color: "bg-orange-500",
+    demos: [
+      { name: "Neural Networks", path: "/demo/ai", difficulty: "Intermediate" },
+      { name: "Deep Learning", path: "/demo/ml", difficulty: "Advanced" },
+    ],
+  },
+]
+
 export default function SimulationsPage() {
   const [prompt, setPrompt] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -62,6 +105,7 @@ export default function SimulationsPage() {
   const [copied, setCopied] = useState(false)
   const [backend, setBackend] = useState<string>("qasm_simulator")
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   // Reset parameters when simulation changes
   useEffect(() => {
@@ -572,322 +616,75 @@ export default function SimulationsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-white/10 p-4 flex items-center">
-        <Link href="/demo" className="flex items-center text-white/70 hover:text-white transition-colors">
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          <span>Back to Chat</span>
-        </Link>
-        <h1 className="text-xl font-bold text-white mx-auto">Quantum Simulations</h1>
-        <div className="w-24" />
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto py-8 px-4 max-w-3xl">
-        <div className="space-y-8">
-          {/* Input Section */}
-          <Card className="bg-black border border-white/10">
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="prompt" className="text-sm font-medium text-white/70">
-                    Describe what you want to simulate
-                  </label>
-                  <Input
-                    id="prompt"
-                    placeholder="e.g., Simulate a Bell state quantum circuit"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="h-16 bg-black border-white/20 focus:border-white/40 text-white"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {["bell state", "ghz state", "quantum fourier transform", "hadamard gate", "entanglement"].map(
-                    (example) => (
-                      <Button
-                        key={example}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setExamplePrompt(`Simulate a ${example}`)}
-                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                      >
-                        {example}
-                      </Button>
-                    ),
-                  )}
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isLoading || !prompt.trim()}
-                  className="w-full bg-white text-black hover:bg-white/90"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>Generate Simulation</>
-                  )}
-                </Button>
-              </form>
-
-              {error && (
-                <div className="mt-4 p-4 bg-red-900/30 border border-red-800 rounded-md text-red-200 text-sm">
-                  <div className="flex items-start">
-                    <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
-                    <p>{error}</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Simulation Content */}
-          {simulation && (
-            <div className="space-y-8">
-              {/* Title and Description */}
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-white">{simulation.title}</h2>
-                <p className="text-white/70">{simulation.explanation}</p>
-              </div>
-
-              {/* Equations */}
-              <Card className="bg-black border border-white/10">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Governing Equations</h3>
-                  <div className="p-4 bg-black border border-white/20 rounded-md overflow-x-auto">
-                    <ResourceLoader>
-                      <MathJaxContext>
-                        {simulation.equations.map((eq, i) => (
-                          <div key={i} className="my-2 text-center">
-                            <MathJax>{`\\[${eq}\\]`}</MathJax>
-                          </div>
-                        ))}
-                      </MathJaxContext>
-                    </ResourceLoader>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Parameters */}
-              <Card className="bg-black border border-white/10">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Simulation Parameters</h3>
-
-                  {/* Backend Selection */}
-                  <div className="mb-6">
-                    <label htmlFor="backend" className="text-sm font-medium text-white/70 block mb-2">
-                      Backend
-                    </label>
-                    <Select value={backend} onValueChange={setBackend}>
-                      <SelectTrigger className="bg-black border-white/20 text-white">
-                        <SelectValue placeholder="Select backend" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black border-white/20 text-white">
-                        <SelectItem value="qasm_simulator">QASM Simulator</SelectItem>
-                        <SelectItem value="statevector_simulator">Statevector Simulator</SelectItem>
-                        <SelectItem value="aer_simulator">Aer Simulator</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-6">
-                    {simulation.parameters.map((param) => (
-                      <div key={param.name} className="space-y-2">
-                        <div className="flex justify-between">
-                          <label htmlFor={param.name} className="text-sm font-medium text-white/70">
-                            {param.label}
-                          </label>
-                          <span className="text-sm text-white/70">
-                            {Math.round(paramValues[param.name] || param.default)} {param.unit}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs text-white/50">{param.min}</span>
-                          <Slider
-                            id={param.name}
-                            min={param.min}
-                            max={param.max}
-                            step={param.name === "qubits" ? 1 : (param.max - param.min) / 100}
-                            value={[paramValues[param.name] || param.default]}
-                            onValueChange={(value) => handleParamChange(param.name, value[0])}
-                            className="flex-1"
-                          />
-                          <span className="text-xs text-white/50">{param.max}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    onClick={runSimulation}
-                    disabled={isRunning}
-                    className="w-full mt-6 bg-white text-black hover:bg-white/90"
-                  >
-                    {isRunning ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Running Simulation...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Simulation
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* QASM Code */}
-              {qasmCode && (
-                <Card className="bg-black border border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-medium text-white flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Code className="h-5 w-5 mr-2" />
-                        QASM Code
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={copyQasmToClipboard}
-                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                      >
-                        {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                        {copied ? "Copied" : "Copy"}
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="p-4 bg-black border border-white/20 rounded-md overflow-auto">
-                      <pre className="text-xs text-white/70 whitespace-pre">{qasmCode}</pre>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Simulation Results */}
-              {apiResponse?.results && (
-                <Card className="bg-black border border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-medium text-white">Simulation Results</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <Tabs defaultValue="visualization" className="w-full">
-                      <TabsList className="grid grid-cols-3 mb-4">
-                        <TabsTrigger value="visualization">Visualization</TabsTrigger>
-                        <TabsTrigger value="circuit">Circuit</TabsTrigger>
-                        <TabsTrigger value="data">Data</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="visualization" className="space-y-4">
-                        {apiResponse.results.histogram_image ? (
-                          <div className="flex flex-col items-center">
-                            <h4 className="text-sm font-medium text-white/70 mb-2">Measurement Histogram</h4>
-                            <div className="w-full bg-black border border-white/20 rounded-md overflow-hidden p-4 flex justify-center">
-                              <img
-                                src={`data:image/png;base64,${apiResponse.results.histogram_image}`}
-                                alt="Measurement Histogram"
-                                className="max-w-full h-auto"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full h-64 bg-black border border-white/20 rounded-md overflow-hidden">
-                            <canvas ref={canvasRef} className="w-full h-full" />
-                          </div>
-                        )}
-                      </TabsContent>
-                      <TabsContent value="circuit" className="space-y-4">
-                        {apiResponse.results.circuit_image ? (
-                          <div className="flex flex-col items-center">
-                            <h4 className="text-sm font-medium text-white/70 mb-2">Quantum Circuit</h4>
-                            <div className="w-full bg-black border border-white/20 rounded-md overflow-hidden p-4 flex justify-center">
-                              <img
-                                src={`data:image/png;base64,${apiResponse.results.circuit_image}`}
-                                alt="Quantum Circuit"
-                                className="max-w-full h-auto"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-4 bg-black border border-white/20 rounded-md text-white/50 text-center">
-                            No circuit visualization available
-                          </div>
-                        )}
-                      </TabsContent>
-                      <TabsContent value="data" className="space-y-4">
-                        <div className="p-4 bg-black border border-white/20 rounded-md overflow-auto">
-                          <h4 className="text-sm font-medium text-white/70 mb-2">Measurement Counts</h4>
-                          <pre className="text-xs text-white/70 whitespace-pre-wrap">
-                            {JSON.stringify(apiResponse.results.counts, null, 2)}
-                          </pre>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Insights */}
-              {simulationResults && simulationResults.insights && (
-                <Card className="bg-black border border-white/10">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-medium text-white mb-4">Insights</h3>
-                    <div className="p-4 bg-black border border-white/20 rounded-md">
-                      <ul className="space-y-2">
-                        {simulationResults.insights.map((insight: string, i: number) => (
-                          <li key={i} className="flex items-start text-white/70">
-                            <span className="text-white/50 mr-2">•</span>
-                            <span>{insight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="flex justify-between mt-4">
-                      <Button
-                        variant="outline"
-                        onClick={runSimulation}
-                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Update
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="bg-black border-white/20 hover:bg-white/5 text-white/70"
-                        onClick={() => {
-                          // Download the simulation configuration and results
-                          const data = {
-                            simulation: simulation,
-                            parameters: paramValues,
-                            backend: backend,
-                            qasm: qasmCode,
-                            results: apiResponse,
-                          }
-                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement("a")
-                          a.href = url
-                          a.download = "quantum-simulation-results.json"
-                          document.body.appendChild(a)
-                          a.click()
-                          document.body.removeChild(a)
-                          URL.revokeObjectURL(url)
-                        }}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+      {/* Hero Section */}
+      <section className="py-20 bg-black">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              Scientific Simulations
+            </h1>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              Explore cutting-edge simulations across quantum computing, physics, mathematics, and AI research.
+            </p>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Simulations Grid */}
+      <section className="py-20 bg-gray-900">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+            {simulationCategories.map((category) => {
+              const IconComponent = category.icon
+              return (
+                <Card
+                  key={category.id}
+                  className="bg-gray-800 border-gray-700 hover:bg-gray-700 transition-all duration-300 cursor-pointer"
+                  onClick={() => setSelectedCategory(selectedCategory === category.id ? null : category.id)}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-lg ${category.color}`}>
+                        <IconComponent className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-white">{category.title}</CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  {selectedCategory === category.id && (
+                    <CardContent>
+                      <div className="space-y-3">
+                        {category.demos.map((demo, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <Microscope className="h-4 w-4 text-gray-400" />
+                              <span className="text-white">{demo.name}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {demo.difficulty}
+                              </Badge>
+                            </div>
+                            <Link href={demo.path}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-white border-gray-600 hover:bg-gray-600"
+                              >
+                                Launch
+                              </Button>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

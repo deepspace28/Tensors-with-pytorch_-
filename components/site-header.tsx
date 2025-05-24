@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu } from "lucide-react"
+import { useState } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -46,11 +47,12 @@ const navItems = [
 
 export function SiteHeader({ onOpenBetaModal }: SiteHeaderProps) {
   const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-black/95 backdrop-blur supports-[backdrop-filter]:bg-black/80">
-      <div className="flex h-16 items-center px-4 md:px-6">
-        <Sheet>
+      <div className="flex h-14 sm:h-16 items-center px-4 sm:px-6 md:px-8">
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
@@ -60,25 +62,34 @@ export function SiteHeader({ onOpenBetaModal }: SiteHeaderProps) {
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="pr-0 bg-gray-950 border-gray-800">
-            <MobileNav pathname={pathname} onOpenBetaModal={onOpenBetaModal} />
+          <SheetContent side="left" className="pr-0 bg-gray-950 border-gray-800 w-[280px] sm:w-[300px]">
+            <MobileNav pathname={pathname} onOpenBetaModal={onOpenBetaModal} onClose={() => setIsOpen(false)} />
           </SheetContent>
         </Sheet>
         <Link href="/" className="flex items-center space-x-2 ml-0">
-          <ScientificLogo className="h-8 w-8 text-primary" />
-          <span className="font-bold text-white">Synaptiq</span>
+          <ScientificLogo className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <span className="font-bold text-white text-lg sm:text-xl">Synaptiq</span>
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <nav className="hidden md:flex md:ml-6">
             <DesktopNav pathname={pathname} />
           </nav>
           <div className="flex items-center">
-            <div className="hidden md:flex">
+            <div className="hidden sm:flex">
               <Button
-                className="ml-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                className="ml-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-sm sm:text-base px-3 sm:px-4 py-2 min-h-[40px]"
                 asChild
               >
                 <Link href="/beta">Join the Beta</Link>
+              </Button>
+            </div>
+            <div className="flex sm:hidden">
+              <Button
+                className="ml-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-xs px-2 py-1 min-h-[36px]"
+                size="sm"
+                asChild
+              >
+                <Link href="/beta">Beta</Link>
               </Button>
             </div>
           </div>
@@ -218,37 +229,43 @@ function DesktopNav({ pathname }: { pathname: string }) {
   )
 }
 
-function MobileNav({ pathname, onOpenBetaModal }: { pathname: string; onOpenBetaModal?: () => void }) {
+function MobileNav({
+  pathname,
+  onOpenBetaModal,
+  onClose,
+}: {
+  pathname: string
+  onOpenBetaModal?: () => void
+  onClose: () => void
+}) {
   return (
     <div className="grid gap-2 py-6">
-      <Link
-        href="/"
-        className={cn(
-          "flex items-center gap-2 text-lg font-semibold",
-          pathname === "/" ? "text-primary" : "text-white",
-        )}
-      >
-        <ScientificLogo className="h-6 w-6 text-primary" />
-        <span>Synaptiq</span>
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-white" onClick={onClose}>
+          <ScientificLogo className="h-6 w-6 text-primary" />
+          <span>Synaptiq</span>
+        </Link>
+      </div>
       <nav className="grid gap-2 text-sm">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              "flex w-full items-center rounded-md px-2 py-2 hover:bg-gray-800 hover:text-white",
-              pathname === item.href ? "font-medium text-primary" : "text-gray-200",
+              "flex w-full items-center rounded-md px-3 py-3 hover:bg-gray-800 hover:text-white transition-colors min-h-[44px]",
+              pathname === item.href ? "font-medium text-primary bg-gray-800/50" : "text-gray-200",
             )}
+            onClick={onClose}
           >
             {item.title}
           </Link>
         ))}
       </nav>
-      <div className="mt-4">
+      <div className="mt-6 pt-4 border-t border-gray-800">
         <Button
-          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 min-h-[44px]"
           asChild
+          onClick={onClose}
         >
           <Link href="/beta">Join the Beta</Link>
         </Button>

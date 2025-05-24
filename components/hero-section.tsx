@@ -11,7 +11,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ onJoinBeta }: HeroSectionProps) {
   return (
-    <section className="relative w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-background via-background/95 to-background/90 overflow-hidden">
+    <section className="relative w-full py-8 sm:py-12 md:py-16 lg:py-24 xl:py-32 2xl:py-48 bg-gradient-to-b from-background via-background/95 to-background/90 overflow-hidden">
       {/* Abstract background pattern */}
       <div className="absolute inset-0 z-0 opacity-20">
         <svg
@@ -39,10 +39,10 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
         </svg>
       </div>
 
-      <div className="container px-4 md:px-6 relative z-20">
-        <div className="mx-auto max-w-3xl text-center">
+      <div className="container px-4 sm:px-6 md:px-8 relative z-20 mx-auto">
+        <div className="mx-auto max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300 leading-tight">
               Build the Future of Science with AI
             </h1>
           </motion.div>
@@ -51,7 +51,7 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl mt-4">
+            <p className="mx-auto max-w-[700px] text-muted-foreground text-base sm:text-lg md:text-xl lg:text-2xl mt-4 sm:mt-6 leading-relaxed px-4">
               Accelerate discoveries in quantum mechanics, physics, and mathematics using Synaptiq's specialized AI.
             </p>
           </motion.div>
@@ -59,44 +59,48 @@ export function HeroSection({ onJoinBeta }: HeroSectionProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
+            className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4"
           >
             {/* Try Demo button - LEFT, WHITE */}
-            <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-6 h-auto">
-              <Link href="/demo" className="flex items-center">
-                Try Demo <ArrowRight className="ml-2 h-5 w-5" />
+            <Button
+              asChild
+              size="lg"
+              className="bg-white text-black hover:bg-gray-100 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-6 h-auto w-full sm:w-auto min-h-[48px]"
+            >
+              <Link href="/demo" className="flex items-center justify-center">
+                Try Demo <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
               </Link>
             </Button>
 
             {/* Request Beta Access button - RIGHT, DARK */}
             <Button
-              asChild
               size="lg"
               variant="outline"
-              className="border-gray-700 text-white hover:bg-gray-800 text-lg px-8 py-6 h-auto"
+              className="border-gray-700 text-white hover:bg-gray-800 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-6 h-auto w-full sm:w-auto min-h-[48px]"
+              onClick={onJoinBeta}
             >
-              <Link href="/beta">Request Beta Access</Link>
+              Request Beta Access
             </Button>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="mt-12 flex justify-center items-center gap-8"
+            className="mt-8 sm:mt-12 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8"
           >
             <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">99.8%</div>
-              <div className="text-sm text-muted-foreground">Accuracy Rate</div>
+              <div className="text-2xl sm:text-3xl font-bold text-primary">99.8%</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Accuracy Rate</div>
             </div>
-            <div className="h-12 w-px bg-border"></div>
+            <div className="hidden sm:block h-12 w-px bg-border"></div>
             <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">24+</div>
-              <div className="text-sm text-muted-foreground">Research Papers</div>
+              <div className="text-2xl sm:text-3xl font-bold text-primary">24+</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Research Papers</div>
             </div>
-            <div className="h-12 w-px bg-border"></div>
+            <div className="hidden sm:block h-12 w-px bg-border"></div>
             <div className="flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">10k+</div>
-              <div className="text-sm text-muted-foreground">Researchers</div>
+              <div className="text-2xl sm:text-3xl font-bold text-primary">10k+</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Researchers</div>
             </div>
           </motion.div>
         </div>
