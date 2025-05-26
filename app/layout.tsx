@@ -1,7 +1,7 @@
 import type React from "react"
+import "@/app/globals.css"
 import type { Metadata, Viewport } from "next"
 import { Inter, IBM_Plex_Sans } from "next/font/google"
-import "./globals.css"
 
 import { siteConfig } from "@/config/site"
 import { cn } from "@/lib/utils"

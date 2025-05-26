@@ -4,7 +4,6 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Send,
-  Plus,
   Search,
   Sparkles,
   Lightbulb,
@@ -14,7 +13,6 @@ import {
   MoreVertical,
   AlertTriangle,
   Lock,
-  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,6 +32,7 @@ import Link from "next/link"
 import { BetaSignupModal } from "./beta-signup-modal"
 
 // Mock implementation of ConversationStorage for development
+// In a real app, this would be imported from "@/lib/conversation-storage"
 export const ConversationStorage = {
   getAll: () => {
     if (typeof window === "undefined") return []
@@ -84,6 +83,7 @@ export const ConversationStorage = {
       ...conversation,
       messages: [...conversation.messages, message],
       lastUpdated: new Date(),
+      // Update title based on first user message if it's the default title
       title:
         conversation.title === "New Conversation" && message.role === "user"
           ? message.content.slice(0, 30) + (message.content.length > 30 ? "..." : "")
@@ -160,7 +160,7 @@ export function SynaptiqChat() {
   const [showOfflineMessage, setShowOfflineMessage] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [betaFeatureAttempted, setBetaFeatureAttempted] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Always use the server-side endpoint by default
   const [useDirectClient, setUseDirectClient] = useState(false)
 
   const [betaName, setBetaName] = useState("")
@@ -176,6 +176,7 @@ export function SynaptiqChat() {
   const router = useRouter()
   const { user, joinBeta } = useUser()
 
+  // Check if user is a beta member
   const isBetaMember = user && !user.isGuest
 
   // Check network status
@@ -188,6 +189,7 @@ export function SynaptiqChat() {
     window.addEventListener("online", handleOnline)
     window.addEventListener("offline", handleOffline)
 
+    // Initial check
     setShowOfflineMessage(!navigator.onLine)
 
     return () => {
@@ -201,7 +203,9 @@ export function SynaptiqChat() {
     const loadedConversations = ConversationStorage.getAll()
     setConversations(loadedConversations)
 
+    // Set current conversation to the most recent one or create a new one
     if (loadedConversations.length > 0) {
+      // Sort by lastUpdated and get the most recent
       const mostRecent = [...loadedConversations].sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())[0]
       setCurrentConversation(mostRecent)
     } else {
@@ -214,20 +218,28 @@ export function SynaptiqChat() {
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = "24px"
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
     }
   }, [input])
 
-  // Scroll to bottom when messages change
+  // Improved scroll to bottom when messages change
   useEffect(() => {
-    if (messagesEndRef.current && messagesContainerRef.current) {
-      const container = messagesContainerRef.current
-      const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100
-
-      if (isScrolledToBottom) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        })
       }
+    }
+
+    // Always scroll to bottom when messages change
+    if (currentConversation?.messages && currentConversation.messages.length > 0) {
+      // Use multiple timeouts to ensure scrolling works
+      setTimeout(scrollToBottom, 0)
+      setTimeout(scrollToBottom, 100)
+      setTimeout(scrollToBottom, 300)
     }
   }, [currentConversation?.messages])
 
@@ -245,20 +257,152 @@ export function SynaptiqChat() {
     }
   }, [isBetaMember, chatMode])
 
-  // Close sidebar when clicking outside on mobile
+  // Enhanced KaTeX loading and math rendering
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sidebarOpen && window.innerWidth < 1024) {
-        const sidebar = document.getElementById("chat-sidebar")
-        if (sidebar && !sidebar.contains(event.target as Node)) {
-          setSidebarOpen(false)
+    // Load KaTeX CSS
+    if (!document.querySelector('link[href*="katex.min.css"]')) {
+      const linkElement = document.createElement("link")
+      linkElement.rel = "stylesheet"
+      linkElement.href = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
+      linkElement.integrity = "sha384-GvrOXuhMATgEsSwCs4smul74iXGOixntILdUW9XmUC6+HX0sLNAK3q71HotJqlAn"
+      linkElement.crossOrigin = "anonymous"
+      document.head.appendChild(linkElement)
+    }
+
+    // Load KaTeX JavaScript
+    const loadKaTeX = () => {
+      if (!(window as any).katex) {
+        const scriptElement = document.createElement("script")
+        scriptElement.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"
+        scriptElement.integrity = "sha384-cpW21h6RZv/phavutF+AuVYrr+dA8xD9zs6FwLpaCct6O9ctzYFfFr4dgmgccOTx"
+        scriptElement.crossOrigin = "anonymous"
+        scriptElement.onload = () => {
+          // Load auto-render extension
+          const autoRenderScript = document.createElement("script")
+          autoRenderScript.src = "https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+          autoRenderScript.integrity = "sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+          autoRenderScript.crossOrigin = "anonymous"
+          autoRenderScript.onload = () => {
+            // Render math in existing content
+            renderMathInContainer()
+          }
+          document.head.appendChild(autoRenderScript)
+        }
+        document.head.appendChild(scriptElement)
+      } else {
+        renderMathInContainer()
+      }
+    }
+
+    const renderMathInContainer = () => {
+      if (messagesContainerRef.current && (window as any).renderMathInElement) {
+        try {
+          ;(window as any).renderMathInElement(messagesContainerRef.current, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\[", right: "\\]", display: true },
+              { left: "$$", right: "$$", display: false },
+              { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+              { left: "\\begin{align}", right: "\\end{align}", display: true },
+              { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+              { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+              { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+            ],
+            throwOnError: false,
+            strict: false,
+            trust: true,
+            macros: {
+              "\\eqref": "\\href{#1}{}",
+              "\\label": "\\href{#1}{}",
+              "\\require": "\\href{#1}{}",
+              "\\boxed": "\\fbox{#1}",
+              "\\hbar": "\\bar{h}",
+              "\\psi": "\\psi",
+              "\\phi": "\\phi",
+              "\\nabla": "\\nabla",
+              "\\partial": "\\partial",
+            },
+          })
+        } catch (e) {
+          console.error("Error rendering math:", e)
         }
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [sidebarOpen])
+    loadKaTeX()
+
+    // Set up mutation observer for dynamic content
+    const observer = new MutationObserver(() => {
+      setTimeout(renderMathInContainer, 100)
+    })
+
+    if (messagesContainerRef.current) {
+      observer.observe(messagesContainerRef.current, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      })
+    }
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  // Re-render math when messages change
+  useEffect(() => {
+    if (currentConversation?.messages && (window as any).renderMathInElement && messagesContainerRef.current) {
+      setTimeout(() => {
+        try {
+          ;(window as any).renderMathInElement(messagesContainerRef.current, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\[", right: "\\]", display: true },
+              { left: "$$", right: "$$", display: false },
+              { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+              { left: "\\begin{align}", right: "\\end{align}", display: true },
+              { left: "\\begin{alignat}", right: "\\end{alignat}", display: true },
+              { left: "\\begin{gather}", right: "\\end{gather}", display: true },
+              { left: "\\begin{CD}", right: "\\end{CD}", display: true },
+            ],
+            throwOnError: false,
+            strict: false,
+            trust: true,
+            macros: {
+              "\\eqref": "\\href{#1}{}",
+              "\\label": "\\href{#1}{}",
+              "\\require": "\\href{#1}{}",
+              "\\boxed": "\\fbox{#1}",
+              "\\hbar": "\\bar{h}",
+              "\\psi": "\\psi",
+              "\\phi": "\\phi",
+              "\\nabla": "\\nabla",
+              "\\partial": "\\partial",
+            },
+          })
+        } catch (e) {
+          console.error("Error rendering math:", e)
+        }
+      }, 200)
+    }
+  }, [currentConversation?.messages])
+
+  // Prevent page from scrolling when chat container is scrolled
+  useEffect(() => {
+    const preventPageScroll = (e: WheelEvent) => {
+      if (chatContainerRef.current && chatContainerRef.current.contains(e.target as Node)) {
+        e.stopPropagation()
+      }
+    }
+
+    document.addEventListener("wheel", preventPageScroll, { passive: false })
+
+    return () => {
+      document.removeEventListener("wheel", preventPageScroll)
+    }
+  }, [])
 
   const createNewConversation = () => {
     const newConv = ConversationStorage.create()
@@ -267,7 +411,8 @@ export function SynaptiqChat() {
     setInput("")
     setChatMode("normal")
     setError(null)
-    setSidebarOpen(false)
+    setRetryCount(0)
+    setIsLoading(false)
   }
 
   const switchConversation = (id: string) => {
@@ -277,7 +422,6 @@ export function SynaptiqChat() {
       setInput("")
       setChatMode("normal")
       setError(null)
-      setSidebarOpen(false)
     }
   }
 
@@ -285,6 +429,7 @@ export function SynaptiqChat() {
     ConversationStorage.delete(id)
     setConversations((prev) => prev.filter((c) => c.id !== id))
 
+    // If we deleted the current conversation, switch to another one or create new
     if (currentConversation?.id === id) {
       const remaining = conversations.filter((c) => c.id !== id)
       if (remaining.length > 0) {
@@ -346,13 +491,24 @@ export function SynaptiqChat() {
     }
   }
 
+  const scrollToBottom = (force = false) => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
     if (!input.trim() || isLoading || !currentConversation) return
 
+    // Clear any previous errors
     setError(null)
+    setRetryCount(0)
 
     const userMessage: Message = {
       id: uuidv4(),
@@ -361,35 +517,46 @@ export function SynaptiqChat() {
       timestamp: new Date(),
     }
 
+    // Add user message to conversation
     ConversationStorage.addMessage(currentConversation.id, userMessage)
 
-    if (chatMode !== "search") {
-      const placeholderMessage: Message = {
-        id: uuidv4(),
-        role: "assistant",
-        content: "Thinking...",
-        timestamp: new Date(),
-        isPlaceholder: true,
-      }
-
-      ConversationStorage.addMessage(currentConversation.id, placeholderMessage)
-      const placeholderConversation = ConversationStorage.get(currentConversation.id)
-      setCurrentConversation(placeholderConversation || null)
-      setIsLoading(false)
-    } else {
-      setIsLoading(true)
+    // Create placeholder for assistant response
+    const placeholderMessage: Message = {
+      id: uuidv4(),
+      role: "assistant",
+      content: "Thinking...",
+      timestamp: new Date(),
+      isPlaceholder: true,
     }
 
+    ConversationStorage.addMessage(currentConversation.id, placeholderMessage)
+
+    // Update state immediately
     const updatedConversation = ConversationStorage.get(currentConversation.id)
     setCurrentConversation(updatedConversation || null)
     setConversations(ConversationStorage.getAll())
+
+    const currentInput = input
     setInput("")
+    setIsLoading(true)
+
+    // Force scroll to bottom after sending message
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        })
+      }
+    }, 100)
 
     try {
+      // Check network connectivity
       if (!navigator.onLine) {
-        throw new Error("You appear to be offline. Please check your internet connection and try again.")
+        throw new Error("No internet connection. Please check your network and try again.")
       }
 
+      // Prepare messages for API
       const apiMessages =
         updatedConversation?.messages
           .filter((msg) => !msg.isPlaceholder)
@@ -401,38 +568,38 @@ export function SynaptiqChat() {
       console.log("Sending chat request with mode:", chatMode)
 
       let response
-      if (!useDirectClient) {
-        response = await callSecureGroqEndpoint(apiMessages, chatMode)
+      let lastError
 
+      // Try server-side endpoint first
+      try {
+        response = await callSecureGroqEndpoint(apiMessages, chatMode)
         if (response.error) {
-          console.log("Server-side endpoint failed, trying direct client as fallback")
+          lastError = response.error
+          throw new Error(response.error)
+        }
+      } catch (serverError) {
+        console.log("Server-side endpoint failed, trying direct client as fallback")
+        lastError = serverError instanceof Error ? serverError.message : "Server error"
+
+        // Fallback to direct client
+        try {
           response = await DirectGroqClient.chat({
             messages: apiMessages,
             mode: chatMode as GroqChatMode,
           })
-        }
-      } else {
-        response = await DirectGroqClient.chat({
-          messages: apiMessages,
-          mode: chatMode as GroqChatMode,
-        })
-
-        if (response.error) {
-          console.log("Direct client failed, trying server-side endpoint as fallback")
-          response = await callSecureGroqEndpoint(apiMessages, chatMode)
+          if (response.error) {
+            throw new Error(response.error)
+          }
+        } catch (directError) {
+          console.log("Direct client also failed")
+          throw new Error(lastError || "Both server and direct client failed")
         }
       }
 
-      console.log("Received response:", response)
+      const responseText =
+        response.text || "I received your message but couldn't generate a proper response. Please try again."
 
-      if (response.error) {
-        throw new Error(response.error)
-      }
-
-      const responseText = response.text || "I received your message, but had trouble processing it. Please try again."
-
-      setRetryCount(0)
-
+      // Replace placeholder with actual response
       const messages = updatedConversation?.messages || []
       const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
 
@@ -442,6 +609,7 @@ export function SynaptiqChat() {
           isPlaceholder: false,
         })
       } else {
+        // Fallback: add as new message
         const assistantMessage: Message = {
           id: uuidv4(),
           role: "assistant",
@@ -451,68 +619,124 @@ export function SynaptiqChat() {
         ConversationStorage.addMessage(currentConversation.id, assistantMessage)
       }
 
+      // Update state with final conversation
       const finalConversation = ConversationStorage.get(currentConversation.id)
       setCurrentConversation(finalConversation || null)
       setConversations(ConversationStorage.getAll())
+
+      // Force scroll to bottom after response
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+          })
+        }
+      }, 200)
+
+      // Clear error state on success
+      setError(null)
+      setRetryCount(0)
     } catch (error) {
       console.error("Chat error:", error)
-      setRetryCount((prev) => prev + 1)
 
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
 
+      // Create user-friendly error message
       let fallbackMessage = ""
 
-      if (retryCount >= 2) {
-        fallbackMessage = `I apologize, but I'm still having trouble connecting to the server. This might be due to:
+      if (errorMessage.includes("network") || errorMessage.includes("internet") || errorMessage.includes("offline")) {
+        fallbackMessage = `I'm having trouble connecting to the internet. Please check your connection and try again.
 
-1. Server maintenance
-2. High traffic volume
-3. Network connectivity issues
+If the problem persists, you can:
+- Refresh the page
+- Check your network settings
+- Try again in a few moments`
+      } else if (errorMessage.includes("rate limit") || errorMessage.includes("too many requests")) {
+        fallbackMessage = `I'm receiving too many requests right now. Please wait a moment and try again.
 
-You can try:
-- Refreshing the page
-- Checking your internet connection
-- Trying again in a few minutes
+This helps ensure the service remains available for everyone.`
+      } else if (errorMessage.includes("server") || errorMessage.includes("503") || errorMessage.includes("502")) {
+        fallbackMessage = `The server is temporarily unavailable. This is usually brief.
 
-In the meantime, I can still try to help with basic questions using my core knowledge.`
+Please try again in a few moments. If the issue continues, the service may be under maintenance.`
       } else {
-        fallbackMessage = `I apologize, but I encountered an error: ${errorMessage}. Please try again later.`
+        fallbackMessage = `I encountered an error while processing your request: ${errorMessage}
 
-        if (chatMode === "search") {
-          fallbackMessage +=
-            "\n\nI'm unable to search the web at the moment. Would you like me to answer based on my general knowledge instead?"
-        } else if (chatMode === "reason") {
-          fallbackMessage +=
-            "\n\nI'm unable to use reasoning mode at the moment. Would you like me to provide a standard response instead?"
-        }
+Please try again. If the problem continues, try:
+- Refreshing the page
+- Starting a new conversation
+- Checking your internet connection`
       }
 
-      if (updatedConversation) {
-        const messages = updatedConversation.messages || []
-        const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
+      // Replace placeholder with error message
+      const messages = updatedConversation?.messages || []
+      const placeholderIndex = messages.findIndex((m) => m.isPlaceholder)
 
-        if (placeholderIndex >= 0) {
-          ConversationStorage.updateMessage(currentConversation.id, messages[placeholderIndex].id, {
-            content: fallbackMessage,
-            isPlaceholder: false,
-          })
-        } else {
-          const errorResponseMessage: Message = {
-            id: uuidv4(),
-            role: "assistant",
-            content: fallbackMessage,
-            timestamp: new Date(),
-          }
-          ConversationStorage.addMessage(currentConversation.id, errorResponseMessage)
+      if (placeholderIndex >= 0) {
+        ConversationStorage.updateMessage(currentConversation.id, messages[placeholderIndex].id, {
+          content: fallbackMessage,
+          isPlaceholder: false,
+        })
+      } else {
+        // Fallback: add error as new message
+        const errorMessage: Message = {
+          id: uuidv4(),
+          role: "assistant",
+          content: fallbackMessage,
+          timestamp: new Date(),
         }
+        ConversationStorage.addMessage(currentConversation.id, errorMessage)
       }
 
+      // Update state with error conversation
       const errorConversation = ConversationStorage.get(currentConversation.id)
       setCurrentConversation(errorConversation || null)
       setConversations(ConversationStorage.getAll())
+
+      // Force scroll to bottom after error message
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+          })
+        }
+      }, 200)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const retryLastMessage = async () => {
+    if (!currentConversation || currentConversation.messages.length === 0) return
+
+    // Find the last user message
+    const messages = [...currentConversation.messages].reverse()
+    const lastUserMessage = messages.find((m) => m.role === "user")
+
+    if (lastUserMessage) {
+      setInput(lastUserMessage.content)
+      // Remove the error response if it exists
+      const lastMessage = currentConversation.messages[currentConversation.messages.length - 1]
+      if (lastMessage.role === "assistant") {
+        // Remove the last assistant message and retry
+        const updatedMessages = currentConversation.messages.slice(0, -1)
+        const updatedConversation = {
+          ...currentConversation,
+          messages: updatedMessages,
+        }
+        setCurrentConversation(updatedConversation)
+
+        // Update storage
+        localStorage.setItem(
+          "conversations",
+          JSON.stringify(
+            ConversationStorage.getAll().map((c) => (c.id === currentConversation.id ? updatedConversation : c)),
+          ),
+        )
+      }
     }
   }
 
@@ -579,542 +803,443 @@ In the meantime, I can still try to help with basic questions using my core know
     .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime())
 
   return (
-    <div ref={chatContainerRef} className="flex flex-col h-screen overflow-hidden bg-[#0f0f0f] text-white">
-      {/* Header - Compact desktop sizing */}
-      <header className="border-b border-[#2a2a2a] flex-shrink-0 sticky top-0 z-50 bg-[#0f0f0f]">
-        <div className="flex items-center justify-between h-12 sm:h-14 lg:h-12 px-3 sm:px-4 lg:px-4 max-w-none">
-          {/* Left section - Logo and branding with proper alignment */}
-          <div className="flex items-center gap-2 sm:gap-3 lg:gap-2 min-w-0 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden text-gray-400 hover:text-white h-8 w-8 sm:h-9 sm:w-9 p-0 flex-shrink-0"
-            >
-              <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
-            <Link
-              href="/"
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0 flex-shrink-0"
-            >
-              <ScientificLogo className="h-5 w-5 sm:h-6 sm:w-6 lg:h-5 lg:w-5 text-white flex-shrink-0" />
-              <h1 className="text-sm sm:text-base lg:text-sm font-semibold text-white whitespace-nowrap">Synaptiq</h1>
-            </Link>
-          </div>
+    <div className="flex h-screen bg-[#0f0f0f] text-white">
+      {/* Sidebar */}
+      <aside className="w-[260px] border-r border-[#2a2a2a] bg-[#1a1a1a] p-4">
+        <button
+          className="w-full bg-[#3a3a3a] text-white py-2 rounded-md mb-4 hover:bg-[#4a4a4a] transition-colors"
+          onClick={createNewConversation}
+        >
+          + New Chat
+        </button>
 
-          {/* Right section - Navigation with proper spacing */}
-          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-2 flex-shrink-0">
-            <Link
-              href="/"
-              className="text-xs sm:text-sm lg:text-xs text-gray-300 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-gray-800 whitespace-nowrap min-h-[32px] sm:min-h-[36px] lg:min-h-[28px] flex items-center"
-            >
-              Home
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* Offline warning */}
-      {showOfflineMessage && (
-        <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-xs sm:text-sm sticky top-12 sm:top-14 lg:top-12 z-40">
-          <AlertTriangle className="inline-block h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-          You are currently offline. Some features may be unavailable.
-        </div>
-      )}
-
-      {/* Main content - Responsive flex container */}
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Sidebar overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-hidden="true"
-          />
+        {/* Today's conversations */}
+        {todayConversations.length > 0 && (
+          <>
+            <div className="text-gray-400 text-sm mb-2">TODAY</div>
+            <div className="space-y-1 mb-4">
+              {todayConversations.map((conv) => (
+                <div key={conv.id} className="relative group">
+                  <button
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                    )}
+                    onClick={() => switchConversation(conv.id)}
+                  >
+                    {editingTitle === conv.id ? (
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            updateConversationTitle(conv.id, newTitle)
+                          }
+                        }}
+                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      conv.title
+                    )}
+                  </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] cursor-pointer"
+                          onClick={() => {
+                            setEditingTitle(conv.id)
+                            setNewTitle(conv.title)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                          onClick={() => setDeleteConfirmId(conv.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
-        {/* Sidebar - Compact desktop sizing */}
-        <div
-          id="chat-sidebar"
-          className={cn(
-            "fixed inset-y-0 left-0 z-50 w-64 sm:w-72 lg:w-64 border-r border-[#2a2a2a] bg-[#1a1a1a] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          )}
-        >
-          <div className="flex flex-col h-full">
-            {/* Sidebar header with close button for mobile */}
-            <div className="p-3 sm:p-4 lg:p-3 flex-shrink-0 border-b border-[#2a2a2a]">
-              <div className="flex items-center justify-between mb-3 lg:hidden">
-                <div className="flex items-center gap-2">
-                  <ScientificLogo className="h-5 w-5 text-white" />
-                  <span className="font-semibold text-white">Synaptiq</span>
+        {/* Yesterday's conversations */}
+        {yesterdayConversations.length > 0 && (
+          <>
+            <div className="text-gray-400 text-sm mb-2">YESTERDAY</div>
+            <div className="space-y-1 mb-4">
+              {yesterdayConversations.map((conv) => (
+                <div key={conv.id} className="relative group">
+                  <button
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                    )}
+                    onClick={() => switchConversation(conv.id)}
+                  >
+                    {editingTitle === conv.id ? (
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            updateConversationTitle(conv.id, newTitle)
+                          }
+                        }}
+                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      conv.title
+                    )}
+                  </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] cursor-pointer"
+                          onClick={() => {
+                            setEditingTitle(conv.id)
+                            setNewTitle(conv.title)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                          onClick={() => setDeleteConfirmId(conv.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSidebarOpen(false)}
-                  className="text-gray-400 hover:text-white h-8 w-8"
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Older conversations */}
+        {olderConversations.length > 0 && (
+          <>
+            <div className="text-gray-400 text-sm mb-2">PREVIOUS 7 DAYS</div>
+            <div className="space-y-1">
+              {olderConversations.map((conv) => (
+                <div key={conv.id} className="relative group">
+                  <button
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm truncate pr-8",
+                      currentConversation?.id === conv.id && "bg-[#2a2a2a]",
+                    )}
+                    onClick={() => switchConversation(conv.id)}
+                  >
+                    {editingTitle === conv.id ? (
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onBlur={() => updateConversationTitle(conv.id, newTitle)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            updateConversationTitle(conv.id, newTitle)
+                          }
+                        }}
+                        className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      conv.title
+                    )}
+                  </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-400 hover:text-white">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] cursor-pointer"
+                          onClick={() => {
+                            setEditingTitle(conv.id)
+                            setNewTitle(conv.title)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer"
+                          onClick={() => setDeleteConfirmId(conv.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </aside>
+
+      {/* Main Chat Panel */}
+      <div className="flex flex-col flex-1">
+        {/* Top Navbar */}
+        <header className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a]">
+          <div className="flex items-center gap-2">
+            <ScientificLogo className="h-6 w-6 text-white" />
+            <span className="text-xl font-bold">Synaptiq</span>
+          </div>
+          <Link href="/" className="text-sm text-gray-400 hover:text-white hover:underline transition-colors">
+            Home
+          </Link>
+        </header>
+
+        {/* Offline warning */}
+        {showOfflineMessage && (
+          <div className="bg-amber-900/30 border-b border-amber-800 p-2 text-center text-amber-200 text-sm">
+            <AlertTriangle className="inline-block h-4 w-4 mr-2" />
+            You are currently offline. Some features may be unavailable.
+          </div>
+        )}
+
+        {/* Chat Messages Area */}
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 relative">
+          {!currentConversation || currentConversation.messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8">
+              <h2 className="text-3xl font-medium mb-2">What can I help with?</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                <div
+                  className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
+                  onClick={() => setInput("Explain quantum entanglement")}
                 >
-                  <X className="h-4 w-4" />
-                </Button>
+                  <Search className="h-5 w-5 text-gray-400 mb-2" />
+                  <h3 className="font-medium mb-1">Explain quantum entanglement</h3>
+                  <p className="text-sm text-gray-400">Learn about this fascinating quantum phenomenon</p>
+                </div>
+                <div
+                  className="bg-[#2a2a2a] p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer"
+                  onClick={() => setInput("Solve the differential equation dy/dx = 2xy")}
+                >
+                  <Sparkles className="h-5 w-5 text-gray-400 mb-2" />
+                  <h3 className="font-medium mb-1">Solve a differential equation</h3>
+                  <p className="text-sm text-gray-400">Get step-by-step solutions to complex problems</p>
+                </div>
               </div>
+            </div>
+          ) : (
+            currentConversation.messages.map((message) => {
+              // Skip placeholder messages that are being replaced
+              if (message.isPlaceholder && isLoading) return null
+
+              return (
+                <div
+                  key={message.id}
+                  className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[80%]",
+                      message.role === "assistant" ? "bg-[#1a1a1a] p-4 rounded-lg" : "bg-[#2a2a2a] p-4 rounded-lg",
+                      message.isPlaceholder ? "opacity-70" : "",
+                    )}
+                  >
+                    {message.role === "assistant" && (
+                      <div className="flex items-start">
+                        <Avatar className="h-8 w-8 mr-4 bg-[#2a2a2a] text-white flex items-center justify-center">
+                          <ScientificLogo className="h-5 w-5" />
+                        </Avatar>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="prose prose-invert max-w-none">
+                            <MarkdownRenderer content={message.content} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {message.role === "user" && (
+                      <div className="overflow-hidden">
+                        <div className="prose prose-invert max-w-none">
+                          <p>{message.content}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          {error && (
+            <div className="flex flex-col items-center justify-center p-4 space-y-3">
+              <Alert variant="destructive" className="bg-red-900/20 border border-red-800 text-red-300 max-w-md">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Connection issue detected. Please check your internet connection.
+                </AlertDescription>
+              </Alert>
               <Button
                 variant="outline"
-                className="w-full justify-start bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a] text-sm lg:text-xs h-10 lg:h-9 min-h-[44px] lg:min-h-[36px]"
-                onClick={createNewConversation}
+                size="sm"
+                onClick={retryLastMessage}
+                className="text-white border-gray-600 hover:bg-gray-700"
               >
-                <Plus className="mr-2 h-4 w-4 lg:h-3 lg:w-3" />
-                New Chat
+                Try Again
+              </Button>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Chat Input Box */}
+        <footer className="border-t border-[#2a2a2a] p-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="flex gap-2">
+              <Textarea
+                ref={(el) => {
+                  textareaRef.current = el
+                  inputRef.current = el
+                }}
+                className="flex-1 border border-[#3a3a3a] rounded-md px-4 py-2 bg-[#1a1a1a] text-white placeholder:text-gray-500 resize-none min-h-[44px] max-h-[200px] focus-visible:ring-0 focus-visible:ring-offset-0"
+                placeholder={chatMode === "search" ? "Search the web..." : "Ask anything"}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading}
+              />
+              <Button
+                type="submit"
+                className="bg-[#3a3a3a] text-white px-4 py-2 rounded-md hover:bg-[#4a4a4a] disabled:bg-[#2a2a2a] disabled:text-gray-500"
+                disabled={!input.trim() || isLoading}
+              >
+                <Send className="w-4 h-4" />
               </Button>
             </div>
 
-            {/* Scrollable conversation list */}
-            <div className="flex-1 overflow-y-auto">
-              {todayConversations.length > 0 && (
-                <>
-                  <div className="px-3 sm:px-4 lg:px-3 py-2 lg:py-1 text-xs lg:text-xs font-medium text-gray-400 uppercase">
-                    Today
-                  </div>
-                  <div className="space-y-1 px-2 sm:px-3 lg:px-2 mb-4 lg:mb-3">
-                    {todayConversations.map((conv) => (
-                      <div key={conv.id} className="relative group">
-                        <button
-                          className={cn(
-                            "w-full text-left px-3 py-2.5 lg:py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm lg:text-xs truncate pr-8 min-h-[44px] lg:min-h-[32px] flex items-center transition-colors",
-                            currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                          )}
-                          onClick={() => switchConversation(conv.id)}
-                        >
-                          {editingTitle === conv.id ? (
-                            <input
-                              type="text"
-                              value={newTitle}
-                              onChange={(e) => setNewTitle(e.target.value)}
-                              onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  updateConversationTitle(conv.id, newTitle)
-                                }
-                              }}
-                              className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none text-sm lg:text-xs"
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            conv.title
-                          )}
-                        </button>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 lg:h-6 lg:w-6 text-gray-400 hover:text-white min-h-[32px] min-w-[32px] lg:min-h-[24px] lg:min-w-[24px]"
-                              >
-                                <MoreVertical className="h-4 w-4 lg:h-3 lg:w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => {
-                                  setEditingTitle(conv.id)
-                                  setNewTitle(conv.title)
-                                }}
-                              >
-                                <Edit className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => setDeleteConfirmId(conv.id)}
-                              >
-                                <Trash2 className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+            {/* Mode buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 rounded-lg transition-all",
+                  isBetaMember
+                    ? chatMode === "search"
+                      ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                      : "text-white hover:text-white hover:bg-[#2a2a2a]"
+                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                )}
+                onClick={() => toggleChatMode("search")}
+              >
+                <Search className="h-4 w-4 mr-1" />
+                <span>Search</span>
+                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+              </Button>
 
-              {yesterdayConversations.length > 0 && (
-                <>
-                  <div className="px-3 sm:px-4 lg:px-3 py-2 lg:py-1 text-xs lg:text-xs font-medium text-gray-400 uppercase">
-                    Yesterday
-                  </div>
-                  <div className="space-y-1 px-2 sm:px-3 lg:px-2 mb-4 lg:mb-3">
-                    {yesterdayConversations.map((conv) => (
-                      <div key={conv.id} className="relative group">
-                        <button
-                          className={cn(
-                            "w-full text-left px-3 py-2.5 lg:py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm lg:text-xs truncate pr-8 min-h-[44px] lg:min-h-[32px] flex items-center transition-colors",
-                            currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                          )}
-                          onClick={() => switchConversation(conv.id)}
-                        >
-                          {editingTitle === conv.id ? (
-                            <input
-                              type="text"
-                              value={newTitle}
-                              onChange={(e) => setNewTitle(e.target.value)}
-                              onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  updateConversationTitle(conv.id, newTitle)
-                                }
-                              }}
-                              className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none text-sm lg:text-xs"
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            conv.title
-                          )}
-                        </button>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 lg:h-6 lg:w-6 text-gray-400 hover:text-white min-h-[32px] min-w-[32px] lg:min-h-[24px] lg:min-w-[24px]"
-                              >
-                                <MoreVertical className="h-4 w-4 lg:h-3 lg:w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => {
-                                  setEditingTitle(conv.id)
-                                  setNewTitle(conv.title)
-                                }}
-                              >
-                                <Edit className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => setDeleteConfirmId(conv.id)}
-                              >
-                                <Trash2 className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 rounded-lg transition-all",
+                  isBetaMember
+                    ? chatMode === "reason"
+                      ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                      : "text-white hover:text-white hover:bg-[#2a2a2a]"
+                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                )}
+                onClick={() => toggleChatMode("reason")}
+              >
+                <Lightbulb className="h-4 w-4 mr-1" />
+                <span>Reason</span>
+                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+              </Button>
 
-              {olderConversations.length > 0 && (
-                <>
-                  <div className="px-3 sm:px-4 lg:px-3 py-2 lg:py-1 text-xs lg:text-xs font-medium text-gray-400 uppercase">
-                    Previous 7 Days
-                  </div>
-                  <div className="space-y-1 px-2 sm:px-3 lg:px-2">
-                    {olderConversations.map((conv) => (
-                      <div key={conv.id} className="relative group">
-                        <button
-                          className={cn(
-                            "w-full text-left px-3 py-2.5 lg:py-2 rounded-md hover:bg-[#2a2a2a] text-gray-300 text-sm lg:text-xs truncate pr-8 min-h-[44px] lg:min-h-[32px] flex items-center transition-colors",
-                            currentConversation?.id === conv.id && "bg-[#2a2a2a]",
-                          )}
-                          onClick={() => switchConversation(conv.id)}
-                        >
-                          {editingTitle === conv.id ? (
-                            <input
-                              type="text"
-                              value={newTitle}
-                              onChange={(e) => setNewTitle(e.target.value)}
-                              onBlur={() => updateConversationTitle(conv.id, newTitle)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  updateConversationTitle(conv.id, newTitle)
-                                }
-                              }}
-                              className="bg-[#3a3a3a] text-white border-none rounded px-2 py-1 w-full focus:outline-none text-sm lg:text-xs"
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            conv.title
-                          )}
-                        </button>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 lg:h-6 lg:w-6 text-gray-400 hover:text-white min-h-[32px] min-w-[32px] lg:min-h-[24px] lg:min-w-[24px]"
-                              >
-                                <MoreVertical className="h-4 w-4 lg:h-3 lg:w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => {
-                                  setEditingTitle(conv.id)
-                                  setNewTitle(conv.title)
-                                }}
-                              >
-                                <Edit className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="hover:bg-[#3a3a3a] text-red-400 hover:text-red-300 cursor-pointer min-h-[36px] lg:min-h-[32px] text-sm lg:text-xs"
-                                onClick={() => setDeleteConfirmId(conv.id)}
-                              >
-                                <Trash2 className="h-4 w-4 lg:h-3 lg:w-3 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 rounded-lg transition-all",
+                  isBetaMember
+                    ? "text-white hover:text-white hover:bg-[#2a2a2a]"
+                    : "text-white hover:text-white hover:bg-[#2a2a2a]",
+                )}
+                onClick={goToSimulations}
+              >
+                <Beaker className="h-4 w-4 mr-1" />
+                <span>Simulations</span>
+                {!isBetaMember && <Lock className="h-3 w-3 ml-1" />}
+              </Button>
             </div>
-          </div>
-        </div>
 
-        {/* Chat area - Responsive flex container */}
-        <div className="flex-1 flex flex-col h-full max-h-screen overflow-hidden">
-          {/* Messages - Responsive scrollable area */}
-          <div
-            ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-4 space-y-4 sm:space-y-6 lg:space-y-4"
-            style={{
-              overscrollBehavior: "contain",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            {!currentConversation || currentConversation.messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-8 lg:p-6">
-                <h2 className="text-xl sm:text-2xl lg:text-xl font-medium mb-2 sm:mb-4 lg:mb-3">
-                  What can I help with?
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-3 w-full max-w-2xl lg:max-w-3xl mt-6 sm:mt-8 lg:mt-6">
-                  <div
-                    className="bg-[#2a2a2a] p-4 sm:p-6 lg:p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer transition-colors min-h-[100px] sm:min-h-[120px] lg:min-h-[90px] flex flex-col"
-                    onClick={() => setInput("Explain quantum entanglement")}
-                  >
-                    <Search className="h-5 w-5 sm:h-6 sm:w-6 lg:h-5 lg:w-5 text-gray-400 mb-2 sm:mb-3 lg:mb-2" />
-                    <h3 className="font-medium mb-1 sm:mb-2 lg:mb-1 text-sm sm:text-base lg:text-sm">
-                      Explain quantum entanglement
-                    </h3>
-                    <p className="text-xs sm:text-sm lg:text-xs text-gray-400 flex-1">
-                      Learn about this fascinating quantum phenomenon
-                    </p>
-                  </div>
-                  <div
-                    className="bg-[#2a2a2a] p-4 sm:p-6 lg:p-4 rounded-lg hover:bg-[#3a3a3a] cursor-pointer transition-colors min-h-[100px] sm:min-h-[120px] lg:min-h-[90px] flex flex-col"
-                    onClick={() => setInput("Solve the differential equation dy/dx = 2xy")}
-                  >
-                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 lg:h-5 lg:w-5 text-gray-400 mb-2 sm:mb-3 lg:mb-2" />
-                    <h3 className="font-medium mb-1 sm:mb-2 lg:mb-1 text-sm sm:text-base lg:text-sm">
-                      Solve a differential equation
-                    </h3>
-                    <p className="text-xs sm:text-sm lg:text-xs text-gray-400 flex-1">
-                      Get step-by-step solutions to complex problems
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              currentConversation.messages.map((message) => {
-                if (message.isPlaceholder && isLoading) return null
-
-                return (
-                  <div
-                    key={message.id}
-                    className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
-                  >
-                    <div
-                      className={cn(
-                        "max-w-[85%] sm:max-w-[80%] lg:max-w-[75%]",
-                        message.role === "assistant"
-                          ? "bg-[#1a1a1a] p-3 sm:p-4 lg:p-3 rounded-lg"
-                          : "bg-[#2a2a2a] p-3 sm:p-4 lg:p-3 rounded-lg",
-                        message.isPlaceholder ? "opacity-70" : "",
-                      )}
-                    >
-                      {message.role === "assistant" && (
-                        <div className="flex items-start gap-3 sm:gap-4 lg:gap-3">
-                          <Avatar className="h-6 w-6 sm:h-8 sm:w-8 lg:h-6 lg:w-6 bg-[#2a2a2a] text-white flex items-center justify-center flex-shrink-0 mt-1">
-                            <ScientificLogo className="h-3 w-3 sm:h-5 sm:w-5 lg:h-3 lg:w-3" />
-                          </Avatar>
-                          <div className="flex-1 overflow-hidden min-w-0">
-                            <div className="prose prose-invert max-w-none text-sm sm:text-base lg:text-sm">
-                              <MarkdownRenderer content={message.content} />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {message.role === "user" && (
-                        <div className="overflow-hidden">
-                          <div className="prose prose-invert max-w-none text-sm sm:text-base lg:text-sm">
-                            <p>{message.content}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-            {error && (
-              <div className="flex items-center justify-center p-2">
-                <Alert variant="destructive" className="bg-red-900/20 border border-red-800 text-red-300 max-w-2xl">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-sm lg:text-xs">{error}</AlertDescription>
-                </Alert>
+            {/* Mode indicator */}
+            {chatMode !== "normal" && (
+              <div className="text-xs text-center">
+                {chatMode === "search" && (
+                  <span className="text-gray-400">Search mode active - I'll search the web for information</span>
+                )}
+                {chatMode === "reason" && (
+                  <span className="text-gray-400">Reason mode active - I'll provide step-by-step reasoning</span>
+                )}
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input area - Compact desktop sizing */}
-          <div className="p-3 sm:p-4 lg:p-4 flex-shrink-0 border-t border-[#2a2a2a] bg-[#0f0f0f]">
-            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-              <div className="relative rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] focus-within:border-[#5a5a5a]">
-                <Textarea
-                  ref={(el) => {
-                    textareaRef.current = el
-                    inputRef.current = el
-                  }}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={chatMode === "search" ? "Search the web..." : "Ask anything"}
-                  className="min-h-[40px] sm:min-h-[48px] lg:min-h-[40px] max-h-[200px] resize-none py-3 sm:py-4 lg:py-3 px-3 sm:px-4 lg:px-3 rounded-xl bg-transparent border-none text-white placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 overflow-anchor-none text-sm sm:text-base lg:text-sm"
-                  disabled={isLoading}
-                  style={{ overflowAnchor: "none" }}
-                />
-
-                {/* Action buttons below the input - Compact desktop layout */}
-                <div className="flex items-center justify-between px-3 sm:px-4 lg:px-3 py-2 sm:py-3 lg:py-2 border-t border-[#3a3a3a]">
-                  <div className="flex items-center gap-1 sm:gap-2 lg:gap-1 overflow-x-auto hide-scrollbar">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "h-8 sm:h-9 lg:h-7 rounded-lg transition-all whitespace-nowrap text-xs sm:text-sm lg:text-xs px-2 sm:px-3 lg:px-2 min-h-[32px] sm:min-h-[36px] lg:min-h-[28px]",
-                        isBetaMember
-                          ? chatMode === "search"
-                            ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                            : "text-white hover:text-white hover:bg-[#2a2a2a]"
-                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                      )}
-                      onClick={() => toggleChatMode("search")}
-                    >
-                      <Search className="h-3 w-3 sm:h-4 sm:w-4 lg:h-3 lg:w-3 mr-1" />
-                      <span className="hidden sm:inline lg:hidden">Search</span>
-                      <span className="sm:hidden lg:inline">S</span>
-                      {!isBetaMember && <Lock className="h-2 w-2 sm:h-3 sm:w-3 lg:h-2 lg:w-2 ml-1" />}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "h-8 sm:h-9 lg:h-7 rounded-lg transition-all whitespace-nowrap text-xs sm:text-sm lg:text-xs px-2 sm:px-3 lg:px-2 min-h-[32px] sm:min-h-[36px] lg:min-h-[28px]",
-                        isBetaMember
-                          ? chatMode === "reason"
-                            ? "text-white bg-[#2a2a2a] shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                            : "text-white hover:text-white hover:bg-[#2a2a2a]"
-                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                      )}
-                      onClick={() => toggleChatMode("reason")}
-                    >
-                      <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4 lg:h-3 lg:w-3 mr-1" />
-                      <span className="hidden sm:inline lg:hidden">Reason</span>
-                      <span className="sm:hidden lg:inline">R</span>
-                      {!isBetaMember && <Lock className="h-2 w-2 sm:h-3 sm:w-3 lg:h-2 lg:w-2 ml-1" />}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={cn(
-                        "h-8 sm:h-9 lg:h-7 rounded-lg transition-all whitespace-nowrap text-xs sm:text-sm lg:text-xs px-2 sm:px-3 lg:px-2 min-h-[32px] sm:min-h-[36px] lg:min-h-[28px]",
-                        isBetaMember
-                          ? "text-white hover:text-white hover:bg-[#2a2a2a]"
-                          : "text-white hover:text-white hover:bg-[#2a2a2a]",
-                      )}
-                      onClick={goToSimulations}
-                    >
-                      <Beaker className="h-3 w-3 sm:h-4 sm:w-4 lg:h-3 lg:w-3 mr-1" />
-                      <span className="hidden sm:inline lg:hidden">Simulations</span>
-                      <span className="sm:hidden lg:inline">Sim</span>
-                      {!isBetaMember && <Lock className="h-2 w-2 sm:h-3 sm:w-3 lg:h-2 lg:w-2 ml-1" />}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 lg:gap-1 flex-shrink-0">
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={!input.trim() || isLoading}
-                      className="h-8 w-8 sm:h-9 sm:w-9 lg:h-7 lg:w-7 rounded-lg bg-[#3a3a3a] text-white hover:bg-[#4a4a4a] disabled:bg-[#2a2a2a] disabled:text-gray-500 min-h-[32px] min-w-[32px] sm:min-h-[36px] sm:min-w-[36px] lg:min-h-[28px] lg:min-w-[28px]"
-                    >
-                      <Send className="h-3 w-3 sm:h-4 sm:w-4 lg:h-3 lg:w-3" />
-                      <span className="sr-only">Send message</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mode indicator - Responsive text */}
-              {chatMode !== "normal" && (
-                <div className="text-xs sm:text-sm lg:text-xs text-center mt-2">
-                  {chatMode === "search" && (
-                    <span className="text-gray-400">Search mode active - I'll search the web for information</span>
-                  )}
-                  {chatMode === "reason" && (
-                    <span className="text-gray-400">Reason mode active - I'll provide step-by-step reasoning</span>
-                  )}
-                </div>
-              )}
-            </form>
-          </div>
-        </div>
+          </form>
+        </footer>
       </div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmId !== null} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white max-w-sm sm:max-w-md">
+        <DialogContent className="bg-[#2a2a2a] border-[#3a3a3a] text-white">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg lg:text-base">Delete Conversation</DialogTitle>
+            <DialogTitle>Delete Conversation</DialogTitle>
           </DialogHeader>
-          <p className="py-4 text-sm sm:text-base lg:text-sm">
-            Are you sure you want to delete this conversation? This action cannot be undone.
-          </p>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <p className="py-4">Are you sure you want to delete this conversation? This action cannot be undone.</p>
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setDeleteConfirmId(null)}
-              className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a] text-sm lg:text-xs min-h-[44px] lg:min-h-[36px]"
+              className="bg-transparent border-[#3a3a3a] text-white hover:bg-[#3a3a3a]"
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && deleteConversation(deleteConfirmId)}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm lg:text-xs min-h-[44px] lg:min-h-[36px]"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete
             </Button>
@@ -1132,4 +1257,5 @@ In the meantime, I can still try to help with basic questions using my core know
   )
 }
 
+// Make sure to export the component as default as well
 export default SynaptiqChat
