@@ -23,7 +23,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   return (
     <header className="border-b border-gray-800 bg-[#0a0a0a]/90 backdrop-blur supports-[backdrop-filter]:bg-[#0a0a0a]/50 sticky top-0 z-50">
       <div className="flex h-14 items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-1">
           <Button
             variant="ghost"
             size="icon"
@@ -32,11 +32,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <ScientificLogo className="h-6 w-6 text-white" />
-          <span className="font-bold text-white">Synaptiq Chat</span>
+          <div className="flex items-center gap-2">
+            <ScientificLogo className="h-6 w-6 text-white" />
+            <span className="font-bold text-white text-lg">Synaptiq Chat</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-shrink-0">
           <div className="text-sm text-gray-400">
             {isGuest ? (
               <span>Guest • {queriesRemaining}/3 queries left</span>
